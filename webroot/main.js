@@ -1027,6 +1027,21 @@ function copyNodeFullConfig(event, category, id) {
     });
 }
 
+// FinalMask lives at streamSettings.finalmask — a network-agnostic block, so it
+// is carried in links as a single JSON blob: the `finalmask` query param for
+// vless/trojan/ss/hysteria2, and the `finalmask` key inside the vmess JSON.
+// Same round-trip convention already used for XHTTP `extra`.
+function _normalizeFinalMask(v) {
+    if (!v) return "";
+    try {
+        return JSON.stringify(typeof v === 'string' ? JSON.parse(v) : v);
+    } catch (e) {
+        // Keep whatever the user/subscription gave us so it survives a round
+        // trip instead of being silently dropped; save-time validation warns.
+        return typeof v === 'string' ? v : "";
+    }
+}
+
 function getFullNodeDetails(node) {
     const uri = node.rawUri.trim();
     const protocol = node.protocol;
@@ -1057,6 +1072,8 @@ function getFullNodeDetails(node) {
         xhttpHost: "",
         xhttpPath: "/",
         xhttpExtra: "",
+        // FinalMask (streamSettings.finalmask, network-agnostic)
+        finalMask: "",
         // H2
         h2Host: "",
         h2Path: "/",
@@ -1117,6 +1134,8 @@ function getFullNodeDetails(node) {
             d.alterId = c.aid !== undefined ? String(c.aid) : "0";
             d.headerType = c.type || "none";
             // Per-network fields
+            d.finalMask = _normalizeFinalMask(c.finalmask);
+
             if (c.net === 'tcp') {
                 d.tcpHeaderType = c.type || "none";
                 if (c.type === 'http') {
@@ -1181,6 +1200,7 @@ function getFullNodeDetails(node) {
             d.allowInsecure = p.get('insecure') === '1' || p.get('allowInsecure') === '1' || p.get('allowInsecure') === 'true';
             d.pcs = p.get('pcs') || '';
             d.ech = p.get('ech') || '';
+            d.finalMask = _normalizeFinalMask(p.get('finalmask'));
 
             // Per-network fields
             if (d.network === 'tcp') {
@@ -1270,6 +1290,7 @@ function getFullNodeDetails(node) {
                     d.allowInsecure = p.get('insecure') === '1' || p.get('allowInsecure') === '1' || p.get('allowInsecure') === 'true';
                     d.pcs = p.get('pcs') || '';
                     d.ech = p.get('ech') || '';
+                    d.finalMask = _normalizeFinalMask(p.get('finalmask'));
 
                     if (d.network === 'tcp') {
                         d.tcpHeaderType = p.get('headerType') || 'none';
@@ -1362,6 +1383,7 @@ function getFullNodeDetails(node) {
             d.hy2BandwidthUp = p.get('up') || "";
             d.hy2PortHopping = p.get('mport') || "";
             d.hy2HopInterval = p.get('hopInterval') || "";
+            d.finalMask = _normalizeFinalMask(p.get('finalmask'));
         } catch(e) {}
     }
 
@@ -1444,6 +1466,7 @@ function serializeNodeDetailsToUri(d, protocol) {
             if (d.spiderX) params.set('spx', d.spiderX);
             if (d.pqv) params.set('pqv', d.pqv);
         }
+        if (d.finalMask) params.set('finalmask', d.finalMask);
         let pStr = params.toString();
         if (pStr) urlStr += "?" + pStr;
 
@@ -1476,6 +1499,7 @@ function serializeNodeDetailsToUri(d, protocol) {
         if (d.hy2BandwidthUp) params.set('up', d.hy2BandwidthUp);
         if (d.hy2PortHopping) params.set('mport', d.hy2PortHopping);
         if (d.hy2HopInterval) params.set('hopInterval', d.hy2HopInterval);
+        if (d.finalMask) params.set('finalmask', d.finalMask);
         const user = d.uuid ? encodeURIComponent(d.uuid) : "";
         let urlStr = `hysteria2://${user}@${bracketIPv6(d.address)}:${d.port}`;
         const pStr = params.toString();
@@ -1546,6 +1570,7 @@ function serializeNodeDetailsToUri(d, protocol) {
             c.mode = d.grpcMode || "gun";
             c.authority = d.grpcAuth || "";
         }
+        if (d.finalMask) { try { c.finalmask = JSON.parse(d.finalMask); } catch(e) {} }
         return "vmess://" + utoa(JSON.stringify(c));
     } else {
         let urlStr = `${protocol}://${encodeURIComponent(d.uuid)}@${bracketIPv6(d.address)}:${d.port}`;
@@ -1599,6 +1624,7 @@ function serializeNodeDetailsToUri(d, protocol) {
             if (d.spiderX) params.set('spx', d.spiderX);
             if (d.pqv) params.set('pqv', d.pqv);
         }
+        if (d.finalMask) params.set('finalmask', d.finalMask);
         let pStr = params.toString();
         if (pStr) urlStr += "?" + pStr;
         if (d.name) urlStr += "#" + encodeURIComponent(d.name);
@@ -1646,7 +1672,7 @@ function _populateEditModal(node, isNew = false) {
         flow: "", network: "tcp", tcpHeaderType: "none", tcpHttpHost: "", tcpHttpPath: "/",
         kcpHeader: "none", kcpHost: "", kcpSeed: "", wsPath: "/", wsHost: "",
         httpupgradeHost: "", httpupgradePath: "/", xhttpMode: "auto", xhttpHost: "",
-        xhttpPath: "/", xhttpExtra: "", h2Host: "", h2Path: "/", grpcMode: "gun",
+        xhttpPath: "/", xhttpExtra: "", finalMask: "", h2Host: "", h2Path: "/", grpcMode: "gun",
         grpcAuth: "", grpcServiceName: "", security: node.security || "none", sni: "",
         fingerprint: "chrome", alpn: "", publicKey: "", shortId: "", spiderX: "", pqv: "", alterId: "0",
         headerType: "none", wgSecretKey: "", wgPublicKey: "", wgPresharedKey: "",
@@ -1685,6 +1711,13 @@ function _populateEditModal(node, isNew = false) {
     document.getElementById('edit-xhttp-host').value = d.xhttpHost;
     document.getElementById('edit-xhttp-path').value = d.xhttpPath;
     document.getElementById('edit-xhttp-extra').value = d.xhttpExtra;
+    // FinalMask — pretty-printed so a multi-layer mask is readable in the textarea
+    const fmEl = document.getElementById('edit-finalmask');
+    if (fmEl) {
+        let fmText = d.finalMask || "";
+        if (fmText) { try { fmText = JSON.stringify(JSON.parse(fmText), null, 2); } catch(e) {} }
+        fmEl.value = fmText;
+    }
     // H2
     document.getElementById('edit-h2-host').value = d.h2Host;
     document.getElementById('edit-h2-path').value = d.h2Path;
@@ -1745,6 +1778,10 @@ function _populateEditModal(node, isNew = false) {
     document.getElementById('section-transport-wrapper').style.display = isClassic ? 'block' : 'none';
     // Security section: only for vmess/vless/trojan
     document.getElementById('section-security-wrapper').style.display = isClassic ? 'block' : 'none';
+    // FinalMask section: classic protocols plus Hysteria2 (quicParams / udpHop /
+    // salamander all live under finalmask for the hysteria transport too).
+    const fmWrap = document.getElementById('section-finalmask-wrapper');
+    if (fmWrap) fmWrap.style.display = (isClassic || isHysteria2) ? 'block' : 'none';
 
     // WireGuard fields
     document.getElementById('subfields-wireguard').style.display = isWireGuard ? 'flex' : 'none';
@@ -1842,6 +1879,12 @@ function _collectEditFormData() {
         xhttpHost: document.getElementById('edit-xhttp-host').value.trim(),
         xhttpPath: document.getElementById('edit-xhttp-path').value.trim() || "/",
         xhttpExtra: document.getElementById('edit-xhttp-extra').value.trim(),
+        // FinalMask — stored minified; the textarea holds the pretty-printed form
+        finalMask: (() => {
+            const raw = (document.getElementById('edit-finalmask')?.value || "").trim();
+            if (!raw) return "";
+            try { return JSON.stringify(JSON.parse(raw)); } catch (e) { return raw; }
+        })(),
         // H2
         h2Host: document.getElementById('edit-h2-host').value.trim(),
         h2Path: document.getElementById('edit-h2-path').value.trim() || "/",
@@ -1891,6 +1934,18 @@ function saveEditedNode() {
 
     const isNew = currentEditingNodeId.startsWith('__new__');
     const d = _collectEditFormData();
+
+    // FinalMask must be a JSON object, otherwise it would be silently dropped
+    // when the link is rebuilt — tell the user instead of losing their input.
+    if (d.finalMask) {
+        let fmOk = false;
+        try {
+            const parsed = JSON.parse(d.finalMask);
+            fmOk = parsed && typeof parsed === 'object' && !Array.isArray(parsed);
+        } catch (e) { fmOk = false; }
+        if (!fmOk) return showToast(t('toast_finalmask_invalid'), "error");
+    }
+
     const proto = currentEditingProtocol;
     const newUri = serializeNodeDetailsToUri(d, proto);
 

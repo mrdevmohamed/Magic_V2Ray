@@ -678,6 +678,19 @@
 
                 </div><!-- end section-transport-wrapper -->
 
+                <!-- FINALMASK section (streamSettings.finalmask).
+                     Network-agnostic: it sits alongside tcpSettings/tlsSettings
+                     rather than inside them, so it is shown for the classic
+                     protocols AND for Hysteria2 (quicParams / udpHop / salamander). -->
+                <div id="section-finalmask-wrapper">
+                <div class="modal-section-divider" data-i18n="lbl_finalmask">FINALMASK</div>
+                <div class="edit-item-field">
+                    <label data-i18n="lbl_finalmask_json">FinalMask (JSON)</label>
+                    <textarea id="edit-finalmask" rows="6" spellcheck="false" placeholder='{"tcp":[{"type":"fragment","settings":{"packets":"tlshello","lengths":["3-5"],"delays":["10-20"]}}],"udp":[],"quicParams":{"congestion":"bbr"}}'></textarea>
+                    <small class="field-hint" data-i18n="hint_finalmask">Full FinalMaskObject: keys tcp / udp / quicParams. Leave empty to disable.</small>
+                </div>
+                </div><!-- end section-finalmask-wrapper -->
+
                 <!-- SECURITY section (vmess/vless/trojan/shadowsocks; hidden for WireGuard / SOCKS / HTTP / Hysteria2) -->
                 <div id="section-security-wrapper">
                 <div class="modal-section-divider" data-i18n="lbl_tls">SECURITY</div>

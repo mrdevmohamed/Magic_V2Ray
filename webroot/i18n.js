@@ -105,6 +105,10 @@ const i18n = {
         lbl_xhttp_host: "XHTTP host",
         lbl_xhttp_path: "XHTTP path",
         lbl_xhttp_extra: "XHTTP extra (JSON)",
+        lbl_finalmask: "FINALMASK",
+        lbl_finalmask_json: "FinalMask (JSON)",
+        hint_finalmask: "Full FinalMaskObject: keys tcp / udp / quicParams. Leave empty to disable.",
+        toast_finalmask_invalid: "FinalMask is not valid JSON — node not saved.",
 
         // H2
         lbl_h2_host: "H2 host",
@@ -397,6 +401,10 @@ const i18n = {
         lbl_xhttp_host: "XHTTP Host",
         lbl_xhttp_path: "XHTTP 路径",
         lbl_xhttp_extra: "XHTTP 额外参数（JSON）",
+        lbl_finalmask: "最终伪装",
+        lbl_finalmask_json: "FinalMask（JSON）",
+        hint_finalmask: "完整的 FinalMaskObject：支持 tcp / udp / quicParams 字段。留空则不启用。",
+        toast_finalmask_invalid: "FinalMask 不是有效的 JSON，节点未保存。",
 
         // H2
         lbl_h2_host: "H2 Host",
@@ -689,6 +697,10 @@ const i18n = {
         lbl_xhttp_host: "XHTTP Host",
         lbl_xhttp_path: "XHTTP 路徑",
         lbl_xhttp_extra: "XHTTP 額外參數（JSON）",
+        lbl_finalmask: "最終偽裝",
+        lbl_finalmask_json: "FinalMask（JSON）",
+        hint_finalmask: "完整的 FinalMaskObject：支援 tcp / udp / quicParams 欄位。留空則不啟用。",
+        toast_finalmask_invalid: "FinalMask 不是有效的 JSON，節點未儲存。",
 
         // H2
         lbl_h2_host: "H2 Host",
@@ -981,6 +993,10 @@ const i18n = {
         lbl_xhttp_host: "XHTTP host",
         lbl_xhttp_path: "XHTTP path",
         lbl_xhttp_extra: "XHTTP extra (JSON)",
+        lbl_finalmask: "FINALMASK",
+        lbl_finalmask_json: "FinalMask (JSON)",
+        hint_finalmask: "Toàn bộ FinalMaskObject: các khoá tcp / udp / quicParams. Để trống nếu không dùng.",
+        toast_finalmask_invalid: "FinalMask không phải JSON hợp lệ — chưa lưu nút.",
 
         // H2
         lbl_h2_host: "H2 host",

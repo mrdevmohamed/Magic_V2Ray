@@ -206,6 +206,64 @@ function _buildCustomRoutingRules(routingRules) {
         .filter(rule => rule.domain || rule.ip || rule.port || rule.protocol);
 }
 
+// FinalMask (streamSettings.finalmask) is network-agnostic — it sits next to
+// tcpSettings/tlsSettings, not inside them — so it is carried in links as one
+// JSON blob rather than per-transport params: the `finalmask` query param for
+// vless/trojan/ss/hysteria2, and the `finalmask` key inside the vmess JSON.
+// Pulled out here once instead of in every protocol branch below.
+function _extractFinalMaskFromUri(uri) {
+    try {
+        if (/^vmess:\/\//i.test(uri)) {
+            const payload = uri.substring(8).split('#')[0];
+            const json = tryDecodeBase64(payload);
+            if (!json) return null;
+            const c = JSON.parse(json);
+            if (!c || !c.finalmask) return null;
+            return typeof c.finalmask === 'string' ? JSON.parse(c.finalmask) : c.finalmask;
+        }
+        const qIdx = uri.indexOf('?');
+        if (qIdx === -1) return null;
+        const hashIdx = uri.indexOf('#');
+        const qEnd = (hashIdx !== -1 && hashIdx > qIdx) ? hashIdx : uri.length;
+        const raw = new URLSearchParams(uri.substring(qIdx + 1, qEnd)).get('finalmask');
+        if (!raw) return null;
+        return JSON.parse(raw);
+    } catch (e) {
+        // Malformed finalmask must never take the whole node down — the node
+        // still works, just without the extra masking layer.
+        return null;
+    }
+}
+
+// Merge a user-supplied FinalMaskObject onto whatever a protocol branch already
+// produced (Hysteria2's obfs builds finalmask.udp = [salamander] on its own).
+// The user's tcp/udp layers are appended after the built-in ones so the
+// innermost-first ordering of the array is preserved, and quicParams is a
+// shallow field-wise merge with the user's values winning.
+function _mergeFinalMask(streamSettings, userMask) {
+    if (!userMask || typeof userMask !== 'object' || Array.isArray(userMask)) return;
+    const current = streamSettings.finalmask || {};
+    const merged = { ...current };
+
+    ['tcp', 'udp'].forEach(k => {
+        const add = userMask[k];
+        if (!Array.isArray(add) || add.length === 0) return;
+        merged[k] = Array.isArray(current[k]) ? current[k].concat(add) : add.slice();
+    });
+
+    if (userMask.quicParams && typeof userMask.quicParams === 'object') {
+        merged.quicParams = { ...(current.quicParams || {}), ...userMask.quicParams };
+    }
+
+    // Carry through any other top-level key verbatim for forward compatibility
+    // with finalmask fields this UI doesn't model yet.
+    Object.keys(userMask).forEach(k => {
+        if (k !== 'tcp' && k !== 'udp' && k !== 'quicParams') merged[k] = userMask[k];
+    });
+
+    if (Object.keys(merged).length > 0) streamSettings.finalmask = merged;
+}
+
 function convert_uri_to_xray_json(uri, optional_settings) {
     const settings = optional_settings || {
         loglevel: "none",
@@ -826,6 +884,13 @@ function convert_uri_to_xray_json(uri, optional_settings) {
         return JSON.stringify({ error: "Unsupported or malformed URI" }, null, 2);
     }
 
+    // FinalMask — applied after every protocol branch so it works uniformly for
+    // vmess/vless/trojan/ss/hysteria2, and merges with (rather than clobbers)
+    // the salamander layer Hysteria2's obfs param may already have built.
+    if (outbound.streamSettings) {
+        _mergeFinalMask(outbound.streamSettings, _extractFinalMaskFromUri(uri));
+    }
+
     if (settings.mux) {
         outbound.streamSettings.mux = {
             enabled: true,
@@ -1043,6 +1108,38 @@ function convert_uri_to_xray_json(uri, optional_settings) {
     return JSON.stringify(fullConfig, null, 2);
 }
 
+// Inverse of _extractFinalMaskFromUri: render streamSettings.finalmask back
+// into the compact JSON blob that rides in a link. Layers already expressed by
+// a dedicated param (Hysteria2's obfs=salamander) are dropped so a round trip
+// doesn't stack the same mask twice.
+function _serializeFinalMaskForUri(ss, opts) {
+    const fm = ss && ss.finalmask;
+    if (!fm || typeof fm !== 'object' || Array.isArray(fm)) return null;
+    const out = {};
+
+    ['tcp', 'udp'].forEach(k => {
+        if (!Array.isArray(fm[k])) return;
+        let arr = fm[k];
+        if (k === 'udp' && opts && opts.dropUdpSalamander) {
+            let dropped = false;
+            arr = arr.filter(m => {
+                if (!dropped && m && m.type === 'salamander') { dropped = true; return false; }
+                return true;
+            });
+        }
+        if (arr.length) out[k] = arr;
+    });
+
+    if (fm.quicParams && typeof fm.quicParams === 'object' && Object.keys(fm.quicParams).length) {
+        out.quicParams = fm.quicParams;
+    }
+    Object.keys(fm).forEach(k => {
+        if (k !== 'tcp' && k !== 'udp' && k !== 'quicParams') out[k] = fm[k];
+    });
+
+    return Object.keys(out).length ? JSON.stringify(out) : null;
+}
+
 function convert_outbound_to_uri(outbound) {
     const proto   = (outbound.protocol || '').toLowerCase();
     const ss      = outbound.streamSettings || {};
@@ -1115,6 +1212,9 @@ function convert_outbound_to_uri(outbound) {
                     obj.host = Array.isArray(hHost) ? hHost.join(',') : (hHost || '');
                 }
             }
+
+            const fmStr = _serializeFinalMaskForUri(ss);
+            if (fmStr) { try { obj.finalmask = JSON.parse(fmStr); } catch (e) {} }
 
             return 'vmess://' + btoa(JSON.stringify(obj));
         }
@@ -1194,6 +1294,9 @@ function convert_outbound_to_uri(outbound) {
                 const flow = outbound.settings.vnext[0].users[0].flow;
                 if (flow) q.flow = flow;
             }
+
+            const fmStr = _serializeFinalMaskForUri(ss);
+            if (fmStr) q.finalmask = fmStr;
 
             const queryStr = buildQuery(q);
             const nodeTag = (proto === 'vless' ? 'VLESS Node' : 'Trojan Node');
@@ -1283,6 +1386,9 @@ function convert_outbound_to_uri(outbound) {
                 }
             }
 
+            const fmStr = _serializeFinalMaskForUri(ss);
+            if (fmStr) q.finalmask = fmStr;
+
             const queryStr = buildQuery(q);
             const suffix = queryStr ? `?${queryStr}` : '';
             return `ss://${userInfo}@${ssHost}:${srv.port}${suffix}#${pct(nodeTag)}`;
@@ -1361,6 +1467,8 @@ function convert_outbound_to_uri(outbound) {
                 q.obfs = 'salamander';
                 q['obfs-password'] = salamander.settings.password;
             }
+            const fmStr = _serializeFinalMaskForUri(ss, { dropUdpSalamander: !!salamander });
+            if (fmStr) q.finalmask = fmStr;
 
             const queryStr = buildQuery(q);
             const nodeTag  = 'Hysteria2 Node';
