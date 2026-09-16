@@ -170,7 +170,14 @@ function convert_chain_uris_to_xray_json(hop1Uri, hop2Uri, optional_settings) {
     hop2Out.streamSettings.sockopt.mark = 255;
     hop2Out.streamSettings.sockopt.dialerProxy = "proxy-hop1";
 
-    return JSON.stringify(fullConfig, null, 2);
+    // Base the final config on hop2's full config (log/dns/inbounds/routing
+    // are identical between the two single-hop conversions since both were
+    // built from the same optional_settings) and swap in the two-hop
+    // outbound chain ahead of hop2's own direct/block outbounds.
+    const finalConfig = hop2Config;
+    finalConfig.outbounds = [hop2Out, hop1Out, ...hop2Config.outbounds.slice(1)];
+
+    return JSON.stringify(finalConfig, null, 2);
 }
 
 // Converts the user-editable Routing Settings list (advSettings.routingRules)
