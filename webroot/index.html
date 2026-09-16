@@ -427,6 +427,16 @@
                     <label data-i18n="lbl_id">ID / Password</label>
                     <input type="text" id="edit-uuid">
                 </div>
+                <!-- VLESS Encryption (post-quantum, outbound `encryption` field —
+                     the client-side counterpart of the server's `decryption`).
+                     Free-text since the value is a dot-separated block string,
+                     e.g. mlkem768x25519plus.native.600s.100-111-1111.75-0-111.50-0-3333.<auth>
+                     Leave empty / "none" to disable. -->
+                <div class="edit-item-field" id="field-group-vless-encryption" style="display:none;">
+                    <label data-i18n="lbl_vless_encryption">VLESS Encryption</label>
+                    <input type="text" id="edit-vless-encryption" spellcheck="false" placeholder="none">
+                    <small class="field-hint" data-i18n="hint_vless_encryption">Post-quantum VLESS Encryption string (mlkem768x25519plus.native.600s...). Leave empty or "none" to disable.</small>
+                </div>
                 <div id="subfields-vmess" class="conditional-fields">
                     <div class="edit-item-field" id="field-group-alterid">
                         <label data-i18n="lbl_alterid">Alter ID</label>

@@ -1051,6 +1051,11 @@ function getFullNodeDetails(node) {
         port: node.port || "443",
         uuid: node.uuid || "",
         encryption: "none",
+        // VLESS Encryption (post-quantum, outbound `encryption` field on the
+        // vless user object). Distinct from `encryption` above, which is
+        // VMess's legacy cipher (scy) — the two protocols never coexist on a
+        // single node so no naming collision in practice.
+        vlessEncryption: "none",
         flow: "",
         network: "tcp",
         // TCP HTTP header
@@ -1201,6 +1206,7 @@ function getFullNodeDetails(node) {
             d.pcs = p.get('pcs') || '';
             d.ech = p.get('ech') || '';
             d.finalMask = _normalizeFinalMask(p.get('finalmask'));
+            d.vlessEncryption = p.get('encryption') || 'none';
 
             // Per-network fields
             if (d.network === 'tcp') {
@@ -1624,6 +1630,9 @@ function serializeNodeDetailsToUri(d, protocol) {
             if (d.spiderX) params.set('spx', d.spiderX);
             if (d.pqv) params.set('pqv', d.pqv);
         }
+        if (protocol === 'vless' && d.vlessEncryption && d.vlessEncryption !== 'none') {
+            params.set('encryption', d.vlessEncryption);
+        }
         if (d.finalMask) params.set('finalmask', d.finalMask);
         let pStr = params.toString();
         if (pStr) urlStr += "?" + pStr;
@@ -1668,7 +1677,7 @@ function openNewNodeModal(protocol) {
 
 function _populateEditModal(node, isNew = false) {
     const d = isNew ? {
-        name: "", address: "", port: node.port || "443", uuid: "", encryption: "auto",
+        name: "", address: "", port: node.port || "443", uuid: "", encryption: "auto", vlessEncryption: "none",
         flow: "", network: "tcp", tcpHeaderType: "none", tcpHttpHost: "", tcpHttpPath: "/",
         kcpHeader: "none", kcpHost: "", kcpSeed: "", wsPath: "/", wsHost: "",
         httpupgradeHost: "", httpupgradePath: "/", xhttpMode: "auto", xhttpHost: "",
@@ -1687,6 +1696,9 @@ function _populateEditModal(node, isNew = false) {
     document.getElementById('edit-address').value = d.address;
     document.getElementById('edit-port').value = d.port;
     document.getElementById('edit-uuid').value = d.uuid;
+    const vlessEncEl = document.getElementById('edit-vless-encryption');
+    if (vlessEncEl) vlessEncEl.value = (d.vlessEncryption && d.vlessEncryption !== 'none') ? d.vlessEncryption : '';
+
     const encSelect = document.getElementById('edit-encryption');
     const encVal = d.encryption || 'auto';
     encSelect.value = [...encSelect.options].some(o => o.value === encVal) ? encVal : 'auto';
@@ -1771,6 +1783,7 @@ function _populateEditModal(node, isNew = false) {
     document.getElementById('field-group-uuid').style.display = (proto === 'wireguard') ? 'none' : 'flex';
     document.getElementById('field-group-encryption').style.display = (proto === 'vmess') ? 'flex' : 'none';
     document.getElementById('field-group-flow').style.display = (proto === 'vless') ? 'flex' : 'none';
+    document.getElementById('field-group-vless-encryption').style.display = (proto === 'vless') ? 'flex' : 'none';
     document.getElementById('field-group-alterid').style.display = (proto === 'vmess') ? 'flex' : 'none';
     document.getElementById('field-group-ss-method').style.display = isShadowsocks ? 'flex' : 'none';
 
@@ -1858,6 +1871,7 @@ function _collectEditFormData() {
         port: document.getElementById('edit-port').value.trim() || "443",
         uuid: document.getElementById('edit-uuid').value.trim(),
         encryption: document.getElementById('edit-encryption').value.trim(),
+        vlessEncryption: (document.getElementById('edit-vless-encryption')?.value || '').trim() || 'none',
         flow: document.getElementById('edit-flow').value,
         network: document.getElementById('edit-network').value,
         // TCP

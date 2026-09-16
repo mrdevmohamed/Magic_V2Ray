@@ -403,7 +403,11 @@ function convert_uri_to_xray_json(uri, optional_settings) {
                 protocol: proto,
                 settings: proto === 'trojan' 
                     ? { servers: [{ address: host, port, password: user }] }
-                    : { vnext: [{ address: host, port, users: [{ id: user, encryption: "none", flow: p.get('flow') || undefined }] }] },
+                    // VLESS Encryption (post-quantum, XTLS/Xray-core#5067): the
+                    // outbound-side counterpart of the inbound `decryption`
+                    // field. Empty/absent means the feature is off — same as
+                    // the previous hardcoded "none".
+                    : { vnext: [{ address: host, port, users: [{ id: user, encryption: p.get('encryption') || "none", flow: p.get('flow') || undefined }] }] },
                 streamSettings: { 
                     network: net, 
                     security: sec,
@@ -1293,6 +1297,8 @@ function convert_outbound_to_uri(outbound) {
             if (proto === 'vless') {
                 const flow = outbound.settings.vnext[0].users[0].flow;
                 if (flow) q.flow = flow;
+                const enc = outbound.settings.vnext[0].users[0].encryption;
+                if (enc && enc !== 'none') q.encryption = enc;
             }
 
             const fmStr = _serializeFinalMaskForUri(ss);
