@@ -160,6 +160,13 @@ function resolveXrayConfigChecked(rawUri) {
 // path so the write/validate/restart sequence exists in exactly one place.
 function applyActiveConfig(options = {}) {
     const { force = false, onDone } = options;
+    // Professional mode owns config.json outright — never regenerate it from
+    // the selected node, or a settings save would silently wipe the hand
+    // written config.
+    if (advSettings.proMode) {
+        writeProConfigAndReload(customConfigText, options);
+        return;
+    }
     if (!activeConfig) {
         if (onDone) onDone(false);
         return;
@@ -204,6 +211,210 @@ function applyActiveConfig(options = {}) {
     });
 }
  
+// ===== Professional mode (hand written config.json) =====
+//
+// When advSettings.proMode is on, the node pickers on the Dashboard are
+// hidden and CONFIG_JSON is whatever the user typed, written verbatim to the
+// exact file service.sh reads — no separate draft file to fall out of sync.
+// The flag lives in settings.base64 next to every other UI switch.
+
+function bindProModeToFormView() {
+    const toggle = document.getElementById('set-promode');
+    const area = document.getElementById('pro-config-input');
+    if (toggle) toggle.checked = !!advSettings.proMode;
+    if (area && !area.value) area.value = customConfigText || '';
+    updateProModeVisibility();
+}
+
+function updateProModeVisibility() {
+    const on = !!advSettings.proMode;
+    const proSec = document.getElementById('pro-config-section');
+    const importSec = document.getElementById('import-section');
+    const profSec = document.getElementById('profiles-section');
+    if (proSec) proSec.style.display = on ? 'block' : 'none';
+    if (importSec) importSec.style.display = on ? 'none' : 'block';
+    if (profSec) profSec.style.display = on ? 'none' : 'block';
+}
+
+// Structural sanity check. Only the things that make the difference between
+// "a tunnel" and "a bricked device" are hard errors; style choices are
+// warnings the user is free to ignore.
+function validateCustomConfig(text) {
+    const warnings = [];
+    const raw = (text || '').trim();
+    if (!raw) return { ok: false, error: t('pro_err_empty'), warnings };
+
+    let cfg;
+    try {
+        cfg = JSON.parse(raw);
+    } catch (e) {
+        return { ok: false, error: t('pro_err_json', { reason: e.message || String(e) }), warnings };
+    }
+    if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) {
+        return { ok: false, error: t('pro_err_json', { reason: 'root is not an object' }), warnings };
+    }
+
+    const inbounds = Array.isArray(cfg.inbounds) ? cfg.inbounds : [];
+    const outbounds = Array.isArray(cfg.outbounds) ? cfg.outbounds : [];
+
+    if (!outbounds.length) {
+        return { ok: false, error: t('pro_err_no_outbounds'), warnings };
+    }
+
+    const tunIn = inbounds.find(i => i && i.protocol === 'tun');
+    if (!tunIn) {
+        return { ok: false, error: t('pro_err_no_tun'), warnings };
+    }
+    if ((tunIn.settings?.name || '') !== 'xraytun0') {
+        return { ok: false, error: t('pro_err_tun_name'), warnings };
+    }
+    if (tunIn.tag !== 'tun-in') warnings.push(t('pro_warn_tun_tag'));
+
+    // Every outbound that actually dials a socket must carry fwmark 255,
+    // otherwise its own packets are caught by the tun redirect rules and
+    // loop back into Xray instead of leaving via the real interface.
+    const dialing = outbounds.filter(o => o && o.protocol !== 'blackhole' && o.protocol !== 'dns');
+    const marked = dialing.filter(o => o.streamSettings?.sockopt?.mark === 255);
+    if (dialing.length && !marked.length) {
+        return { ok: false, error: t('pro_err_no_mark'), warnings };
+    }
+    dialing.forEach(o => {
+        if (o.streamSettings?.sockopt?.mark !== 255) {
+            warnings.push(t('pro_warn_mark', { tag: o.tag || o.protocol || '?' }));
+        }
+    });
+
+    const socksIn = inbounds.find(i => i && i.protocol === 'socks' && i.tag === 'socks-test-in');
+    if (!socksIn) warnings.push(t('pro_warn_no_socks'));
+    else if (String(socksIn.port) !== '808' || socksIn.listen !== '127.17.1.3') {
+        warnings.push(t('pro_warn_socks_addr'));
+    }
+
+    if (!outbounds.some(o => o && o.tag === 'direct')) warnings.push(t('pro_warn_no_direct'));
+    if (!outbounds.some(o => o && o.tag === 'block')) warnings.push(t('pro_warn_no_block'));
+
+    const rules = cfg.routing?.rules;
+    if (!Array.isArray(rules) || !rules.length) warnings.push(t('pro_warn_no_rules'));
+    else if (!rules.some(r => r && String(r.port || '') === '53')) warnings.push(t('pro_warn_no_dns_rule'));
+
+    return { ok: true, config: JSON.stringify(cfg, null, 2), warnings };
+}
+
+function validateCustomConfigUi() {
+    const area = document.getElementById('pro-config-input');
+    const res = validateCustomConfig(area ? area.value : customConfigText);
+    if (!res.ok) {
+        showToast(t('toast_pro_invalid', { reason: res.error }), 'error');
+        return false;
+    }
+    if (res.warnings.length) {
+        showToast(res.warnings.join(' • '), 'error');
+        return true;
+    }
+    showToast(t('toast_pro_valid'), 'success');
+    return true;
+}
+
+function formatCustomConfig() {
+    const area = document.getElementById('pro-config-input');
+    if (!area) return;
+    try {
+        area.value = JSON.stringify(JSON.parse(area.value), null, 2);
+        showToast(t('toast_pro_formatted'), 'success');
+    } catch (e) {
+        showToast(t('toast_pro_invalid', { reason: e.message || String(e) }), 'error');
+    }
+}
+
+async function loadCustomConfigTemplate() {
+    const area = document.getElementById('pro-config-input');
+    if (!area) return;
+    if (area.value.trim()) {
+        const ok = await showConfirm(t('confirm_pro_template'));
+        if (!ok) return;
+    }
+    area.value = CUSTOM_CONFIG_TEMPLATE;
+}
+
+// Writes `text` straight to config.json and reloads/restarts the engine the
+// same way applyActiveConfig() does for generated configs.
+function writeProConfigAndReload(text, options = {}) {
+    const { force = false, onDone } = options;
+    const res = validateCustomConfig(text);
+    if (!res.ok) {
+        showToast(t('toast_pro_invalid', { reason: res.error }), 'error');
+        if (onDone) onDone(false);
+        return;
+    }
+    showLoading(t("toast_reload_xray"));
+    writeFileB64(CONFIG_JSON, res.config, () => {
+        if (force) {
+            execShell(`sh ${MODDIR}/proxy_control.sh restart`, () => {
+                hideLoading();
+                if (onDone) onDone(true);
+            });
+            return;
+        }
+        execShell(`sh ${MODDIR}/proxy_control.sh status`, (status) => {
+            if (status === 'running') {
+                execShell(`sh ${MODDIR}/proxy_control.sh reload`, () => {
+                    hideLoading();
+                    _markStatusPending();
+                });
+            } else {
+                hideLoading();
+            }
+            if (onDone) onDone(true);
+        });
+    });
+}
+
+function applyCustomConfig() {
+    const area = document.getElementById('pro-config-input');
+    const text = area ? area.value : customConfigText;
+    const res = validateCustomConfig(text);
+    if (!res.ok) {
+        showToast(t('toast_pro_invalid', { reason: res.error }), 'error');
+        return;
+    }
+    if (area) area.value = res.config;
+    customConfigText = res.config;
+
+    // Writes straight to CONFIG_JSON — the same file service.sh reads —
+    // there is no separate draft file to keep in sync.
+    writeProConfigAndReload(customConfigText, {
+        onDone: (ok) => {
+            if (!ok) return;
+            if (res.warnings.length) showToast(res.warnings.join(' • '), 'error');
+            else showToast(t('toast_pro_applied'), 'success');
+        }
+    });
+}
+
+// Flipping the switch only changes which editor the Dashboard shows; the
+// engine is left alone until the user presses a button that applies. The one
+// exception is turning professional mode OFF, which puts the selected node
+// back in charge of config.json straight away.
+function toggleProMode(checkbox) {
+    const on = !!checkbox.checked;
+    advSettings.proMode = on;
+
+    const area = document.getElementById('pro-config-input');
+    if (on && area && !area.value.trim()) {
+        area.value = customConfigText || CUSTOM_CONFIG_TEMPLATE;
+    }
+    updateProModeVisibility();
+
+    writeFileB64(SETTINGS_FILE, utoa(JSON.stringify(advSettings)), () => {
+        if (on) {
+            showToast(t('toast_pro_on'), 'success');
+        } else {
+            showToast(t('toast_pro_off'), 'success');
+            if (activeConfig) applyActiveConfig();
+        }
+    });
+}
+
 // Loads profiles, the active-node pointer and advanced settings, in that
 // order, then binds the settings form. This used to be two functions, the
 // second monkey-patching the first at parse time; it only worked because of
@@ -237,8 +448,11 @@ function loadState(callback) {
                         console.warn("[loadState] settings corrupt, falling back to defaults.");
                     }
                 }
-                bindSettingsToFormView();
-                if (callback) callback();
+                execShell(`cat '${CONFIG_JSON}' 2>/dev/null || echo ''`, (configRaw) => {
+                    customConfigText = (configRaw || '').trim();
+                    bindSettingsToFormView();
+                    if (callback) callback();
+                });
             });
         });
     });
@@ -283,7 +497,13 @@ const PROXY_CONTROL_ACTIONS = [
 
 async function toggleService(action) {
     if (action === 'start' || action === 'restart') {
-        if (!activeConfig) {
+        if (advSettings.proMode) {
+            const check = validateCustomConfig(customConfigText);
+            if (!check.ok) {
+                showToast(t('toast_pro_invalid', { reason: check.error }), "error");
+                return;
+            }
+        } else if (!activeConfig) {
             showToast(t('toast_no_active_config'), "error");
             return;
         }
@@ -2463,6 +2683,7 @@ function bindSettingsToFormView() {
     renderRoutingRules();
 
     syncBypassIfaceState();
+    bindProModeToFormView();
 }
 
 function saveAdvancedSettingsForm(isLangOnly = false) {    advSettings.loglevel = document.getElementById('set-loglevel').value;

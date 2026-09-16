@@ -23,6 +23,9 @@ const ADDR_INFO_FILE = `${STUB_DIR}/run/addr_info`;
 const LATENCY_HB_FILE = `${STUB_DIR}/run/latency.hb`;
  
 let profiles = {};
+// Raw text of CONFIG_JSON, kept in memory while professional mode is on so
+// the textarea has something to show without a re-read on every keystroke.
+let customConfigText = "";
 let activeConfig = null;
 let advSettings = {
     loglevel: "none",
@@ -43,6 +46,9 @@ let advSettings = {
     dnsViaProxy: true,
     localDns: false,
     fakeDnsLocal: false,
+    // Professional mode: when true, config.json is taken verbatim from
+    // CONFIG_JSON instead of being generated from the selected node.
+    proMode: false,
     vpnDns: "1.1.1.1",
     foreignDns: "1.1.1.1",
     domesticDns: "223.5.5.5",
@@ -137,6 +143,80 @@ let advSettings = {
         }
     ]
 };
+// Starting point offered by the "Load template" button in professional mode.
+// Mirrors the skeleton convert_uri_to_xray_json() produces, so a user can
+// edit rather than invent: fwmark 255 on every dialing outbound, the tun-in
+// inbound bound to xraytun0, and the socks-test-in inbound the latency/IP
+// test buttons dial into.
+const CUSTOM_CONFIG_TEMPLATE = `{
+  "log": {
+    "loglevel": "warning"
+  },
+  "dns": {
+    "servers": ["1.1.1.1", "8.8.8.8"],
+    "queryStrategy": "UseIPv4"
+  },
+  "inbounds": [
+    {
+      "tag": "socks-test-in",
+      "port": 808,
+      "listen": "127.17.1.3",
+      "protocol": "socks",
+      "settings": { "auth": "noauth", "udp": true },
+      "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false }
+    },
+    {
+      "tag": "tun-in",
+      "protocol": "tun",
+      "settings": { "name": "xraytun0", "mtu": 8500 },
+      "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "proxy",
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "example.com",
+            "port": 443,
+            "users": [
+              { "id": "00000000-0000-0000-0000-000000000000", "encryption": "none", "flow": "" }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "tls",
+        "tlsSettings": { "serverName": "example.com" },
+        "sockopt": { "mark": 255, "dialerProxy": "direct" }
+      }
+    },
+    {
+      "tag": "direct",
+      "protocol": "freedom",
+      "streamSettings": {
+        "sockopt": { "mark": 255, "domainStrategy": "UseIP" }
+      }
+    },
+    {
+      "tag": "block",
+      "protocol": "blackhole",
+      "settings": { "response": { "type": "http" } }
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      { "type": "field", "port": 53, "outboundTag": "direct" },
+      { "type": "field", "ip": ["geoip:private"], "domain": ["geosite:private"], "outboundTag": "direct" },
+      { "type": "field", "inboundTag": ["socks-test-in", "tun-in"], "network": "tcp,udp", "outboundTag": "proxy" }
+    ]
+  }
+}`;
+
 let currentLang = 'en';
 let currentEditingCategory = null;
 let currentEditingNodeId = null;

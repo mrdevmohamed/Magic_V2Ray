@@ -1730,3 +1730,118 @@ select option:active {
     word-break: break-word;
     line-height: 1.4;
 }
+
+/* ===== Professional Mode (custom config.json) ===== */
+.pro-mode-bar {
+    background: var(--md-surface-1);
+    border: 1px solid var(--md-outline-variant);
+    border-radius: var(--md-shape-md);
+    padding: 4px 14px;
+    margin-bottom: 16px;
+}
+
+.pro-mode-bar .setting-item-row {
+    border-bottom: none;
+}
+
+.pro-config-section {
+    margin-bottom: 24px;
+}
+
+.pro-config-section h3 {
+    font-family: var(--md-font-display);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--md-on-surface);
+    margin: 0 0 12px;
+    letter-spacing: .1px;
+}
+
+.pro-doc {
+    background: var(--md-surface-2);
+    border: 1px solid var(--md-outline-variant);
+    border-left: 3px solid var(--md-tertiary);
+    border-radius: var(--md-shape-md);
+    padding: 10px 14px;
+    margin-bottom: 12px;
+}
+
+.pro-doc > summary {
+    cursor: pointer;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--md-tertiary);
+    list-style: none;
+    user-select: none;
+}
+
+.pro-doc > summary::-webkit-details-marker { display: none; }
+
+.pro-doc > summary::before {
+    content: "\25B8";
+    display: inline-block;
+    margin-right: 8px;
+    transition: transform .15s ease;
+}
+
+.pro-doc[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.pro-doc ul {
+    margin: 10px 0 2px;
+    padding-left: 18px;
+}
+
+.pro-doc li {
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--md-on-surface-variant);
+    margin-bottom: 8px;
+}
+
+.pro-doc li:last-child { margin-bottom: 0; }
+
+.pro-doc b { color: var(--md-on-surface); }
+
+.pro-doc code {
+    font-family: var(--md-font-mono);
+    font-size: 11.5px;
+    background: var(--md-surface-4);
+    border-radius: 4px;
+    padding: 1px 5px;
+    word-break: break-word;
+}
+
+textarea.pro-config-input {
+    height: 340px;
+    resize: vertical;
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+.pro-btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.pro-btn-row .btn {
+    flex: 1 1 auto;
+    width: auto;
+    margin-top: 0;
+    min-width: max-content;
+    padding: 10px 16px;
+    font-size: 13.5px;
+}
+
+/* Tonal – Secondary (professional mode toolbar) */
+.btn-secondary {
+    background: var(--md-secondary-container);
+    color: var(--md-on-secondary-container);
+}
+.btn-secondary:hover { box-shadow: var(--md-shadow-1); }

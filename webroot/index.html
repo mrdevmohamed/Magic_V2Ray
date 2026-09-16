@@ -37,7 +37,36 @@
                 <button class="btn btn-stop" onclick="toggleService('stop')" data-i18n="btn_stop">Stop Engine</button>
             </section>
 
-            <section class="import-section">
+            <section class="pro-mode-bar">
+                <div class="setting-item-row toggle-row">
+                    <label for="set-promode"><span data-i18n="lbl_promode">Professional Mode</span><small data-i18n="desc_promode">Write config.json by hand instead of picking a node</small></label>
+                    <input type="checkbox" id="set-promode" onchange="toggleProMode(this)">
+                </div>
+            </section>
+
+            <section id="pro-config-section" class="pro-config-section" style="display:none;">
+                <h3 data-i18n="pro_title">Custom config.json</h3>
+                <details class="pro-doc" open>
+                    <summary data-i18n="pro_doc_title">Read this before editing</summary>
+                    <ul>
+                        <li data-i18n="pro_doc_fwmark">fwmark 255</li>
+                        <li data-i18n="pro_doc_tun">tun-in</li>
+                        <li data-i18n="pro_doc_socks">socks-test-in</li>
+                        <li data-i18n="pro_doc_direct">direct / block</li>
+                        <li data-i18n="pro_doc_dns">DNS</li>
+                        <li data-i18n="pro_doc_tabs">Other tabs</li>
+                    </ul>
+                </details>
+                <textarea id="pro-config-input" class="pro-config-input" spellcheck="false" autocomplete="off" autocapitalize="off" data-i18n-placeholder="pro_placeholder" placeholder="Paste your full Xray config.json here..."></textarea>
+                <div class="pro-btn-row">
+                    <button class="btn btn-primary" onclick="applyCustomConfig()" data-i18n="btn_pro_apply">Save &amp; Apply</button>
+                    <button class="btn btn-secondary" onclick="validateCustomConfigUi()" data-i18n="btn_pro_validate">Validate</button>
+                    <button class="btn btn-secondary" onclick="formatCustomConfig()" data-i18n="btn_pro_format">Format JSON</button>
+                    <button class="btn btn-secondary" onclick="loadCustomConfigTemplate()" data-i18n="btn_pro_template">Load Template</button>
+                </div>
+            </section>
+
+            <section class="import-section" id="import-section">
                 <h3 data-i18n="import_title">Import Configuration Profile</h3>
                 <textarea id="import-input" data-i18n-placeholder="import_placeholder" placeholder="Paste Sub Link (https://...) or Manual String (vless://, vmess://, trojan://) here..."></textarea>
                 <div class="import-btn-row">
@@ -65,7 +94,7 @@
                 <input type="file" id="import-file-input" accept=".txt,.conf,.json" style="display:none;" onchange="handleFileImport(event)">
             </section>
 
-            <section class="profiles-section">
+            <section class="profiles-section" id="profiles-section">
                 <h3 data-i18n="categories_title">Connection Categories</h3>
                 <div id="profiles-container"></div>
             </section>
