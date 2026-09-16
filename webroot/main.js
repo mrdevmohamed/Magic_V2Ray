@@ -750,7 +750,7 @@ function _resolveXrayConfig(rawUri) {
     return config_json;
 }
 
-function selectNode(category, id) {
+async function selectNode(category, id) {
     const node = profiles[category]?.nodes?.find(n => n.id === id);
     if (!node) return;
  
@@ -763,7 +763,7 @@ function selectNode(category, id) {
         return;
     }
 
-    const confirmed = showConfirm(t('confirm_connect_node', { name: node.name || node.address || id }));
+    const confirmed = await showConfirm(t('confirm_connect_node', { name: node.name || node.address || id }));
     if (!confirmed) return;
 
     activeConfig = `${category}:${id}`;
