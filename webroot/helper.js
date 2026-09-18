@@ -298,8 +298,26 @@ function convert_uri_to_xray_json(uri, optional_settings) {
     uri = uri.trim();
     uri = normalizeUriIPv6Host(uri);
 
+    // Built-in "no proxy" node (freedom://…): xray-core is used purely as a
+    // router. The `proxy` outbound is a freedom outbound, so both `proxy` and
+    // `direct` egress on the underlying network; mark 255 keeps its own
+    // sockets out of the tun redirect, exactly like the real `direct`
+    // outbound built further down.
+    const isDirectOnly = /^freedom:\/\//i.test(uri);
+
     try {
-        if (uri.startsWith('vmess://')) {
+        if (isDirectOnly) {
+            outbound = {
+                tag: "proxy",
+                protocol: "freedom",
+                streamSettings: {
+                    sockopt: {
+                        mark: 255,
+                        "domainStrategy": "UseIP"
+                    }
+                }
+            };
+        } else if (uri.startsWith('vmess://')) {
             // Strip any #remark fragment before decoding — some providers append one.
             const vmessPayload = uri.substring(8).split('#')[0];
             const vmessJson = tryDecodeBase64(vmessPayload);
@@ -898,18 +916,20 @@ function convert_uri_to_xray_json(uri, optional_settings) {
     // FinalMask — applied after every protocol branch so it works uniformly for
     // vmess/vless/trojan/ss/hysteria2, and merges with (rather than clobbers)
     // the salamander layer Hysteria2's obfs param may already have built.
-    if (outbound.streamSettings) {
+    // None of the transport obfuscation layers below mean anything for a
+    // freedom outbound, so the built-in no-proxy node skips them all.
+    if (outbound.streamSettings && !isDirectOnly) {
         _mergeFinalMask(outbound.streamSettings, _extractFinalMaskFromUri(uri));
     }
 
-    if (settings.mux) {
+    if (settings.mux && !isDirectOnly) {
         outbound.streamSettings.mux = {
             enabled: true,
             concurrency: parseInt(settings.mux_connections) || 8
         };
     }
 
-    if (settings.fragment) {
+    if (settings.fragment && !isDirectOnly) {
         outbound.streamSettings.sockopt.fragment = {
             packets: settings.fragment_packets || "tlshello",
             length: settings.fragment_length || "50-100",

@@ -1845,3 +1845,18 @@ textarea.pro-config-input {
     color: var(--md-on-secondary-container);
 }
 .btn-secondary:hover { box-shadow: var(--md-shadow-1); }
+
+/* ===== Built-in "Direct Routing" node =====
+   Pinned above every category, so unlike normal .config-item rows it is not
+   sitting inside a .nodes-list card and needs its own surface + rounding. */
+.config-item.builtin-node {
+    background: var(--md-surface-container, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--md-outline-variant);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+.config-item.builtin-node.selected {
+    background: rgba(208, 188, 255, 0.12);
+    border-color: var(--md-primary);
+}

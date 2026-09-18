@@ -167,18 +167,23 @@ function applyActiveConfig(options = {}) {
         writeProConfigAndReload(customConfigText, options);
         return;
     }
+    // No node selected === the built-in "no proxy" node, which is always
+    // selectable and always valid, so this is a normal path rather than a
+    // bail-out.
+    let rawUri;
     if (!activeConfig) {
-        if (onDone) onDone(false);
-        return;
-    }
-    const [category, id] = activeConfig.split(':');
-    const node = profiles[category]?.nodes?.find(n => n.id === id);
-    if (!node) {
-        if (onDone) onDone(false);
-        return;
+        rawUri = DIRECT_NODE_URI;
+    } else {
+        const [category, id] = activeConfig.split(':');
+        const node = profiles[category]?.nodes?.find(n => n.id === id);
+        if (!node) {
+            if (onDone) onDone(false);
+            return;
+        }
+        rawUri = node.rawUri;
     }
 
-    const res = resolveXrayConfigChecked(node.rawUri);
+    const res = resolveXrayConfigChecked(rawUri);
     if (!res.ok) {
         showToast(t('toast_config_invalid', { reason: res.error }), 'error');
         if (onDone) onDone(false);
@@ -503,10 +508,10 @@ async function toggleService(action) {
                 showToast(t('toast_pro_invalid', { reason: check.error }), "error");
                 return;
             }
-        } else if (!activeConfig) {
-            showToast(t('toast_no_active_config'), "error");
-            return;
         }
+        // No `!activeConfig` guard any more: an empty selection is the
+        // built-in no-proxy node, which produces a perfectly startable
+        // router-only config.
         showLoading(t("toast_reload_xray"));
         // Re-apply the mark rule for the live interface first, and only start
         // once that has actually completed — this used to be fire-and-forget,
@@ -994,6 +999,20 @@ async function selectNode(category, id) {
     applyActiveConfig();
 }
  
+// Selecting the built-in node simply clears the node pointer: activeConfig
+// null is what every other code path already treats as "nothing selected",
+// and applyActiveConfig() turns it into the router-only config.
+async function selectDirectNode() {
+    if (!activeConfig) return;
+    const confirmed = await showConfirm(t('confirm_connect_direct'));
+    if (!confirmed) return;
+
+    activeConfig = null;
+    saveActiveConfig();
+    renderProfiles();
+    applyActiveConfig();
+}
+
 function removeCategory(category) {
     delete profiles[category];
     if (activeConfig && activeConfig.startsWith(category + ':')) {
@@ -1017,14 +1036,51 @@ function _mkButton(label, className, handler) {
     return btn;
 }
 
+// The pinned built-in node. Rendered outside any category, always first, and
+// deliberately without the ⋮ menu: there is nothing to edit, copy, delete or
+// latency-test on a node that never leaves the local network.
+function _mkDirectNodeItem() {
+    const isSelected = !activeConfig;
+    const item = document.createElement('div');
+    item.className = `config-item builtin-node${isSelected ? ' selected' : ''}`;
+
+    const info = document.createElement('div');
+    info.className = 'config-info';
+    info.style.cssText = "flex: 1; display: flex; flex-direction: column;";
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'config-name';
+    nameEl.textContent = t('builtin_direct_name');
+
+    const metaEl = document.createElement('div');
+    metaEl.className = 'config-meta';
+    metaEl.textContent = t('builtin_direct_meta');
+
+    info.appendChild(nameEl);
+    info.appendChild(metaEl);
+    info.addEventListener('click', () => selectDirectNode());
+    item.appendChild(info);
+
+    const actions = document.createElement('div');
+    actions.className = 'node-actions-container';
+    if (isSelected) {
+        const pin = document.createElement('span');
+        pin.textContent = '📌';
+        actions.appendChild(pin);
+    }
+    item.appendChild(actions);
+    return item;
+}
+
 function renderProfiles() {
     const container = document.getElementById('profiles-container');
     container.innerHTML = "";
+    container.appendChild(_mkDirectNodeItem());
     const categories = Object.keys(profiles).filter(c => profiles[c]?.nodes?.length > 0);
     if (categories.length === 0) {
         const p = document.createElement('p');
         p.style.cssText = "color: var(--text-muted); font-size:14px; text-align:center; padding: 24px 0;";
-        p.textContent = t('no_configs');
+        p.innerHTML = t('no_configs');
         container.appendChild(p);
         return;
     }

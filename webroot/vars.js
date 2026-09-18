@@ -217,6 +217,15 @@ const CUSTOM_CONFIG_TEMPLATE = `{
   }
 }`;
 
+// Built-in pseudo-node pinned at the top of the node list. Selecting it means
+// "run xray-core as a pure router": the `proxy` outbound is a freedom outbound
+// just like `direct`, so every routing rule still applies but nothing is
+// tunnelled — traffic leaves on the underlying network either way.
+// It is represented by activeConfig === null, i.e. the absence of a selected
+// node, so nothing new is written to ACTIVE_FILE and service.sh keeps seeing
+// the file layout it already knows.
+const DIRECT_NODE_URI = "freedom://direct";
+
 let currentLang = 'en';
 let currentEditingCategory = null;
 let currentEditingNodeId = null;
