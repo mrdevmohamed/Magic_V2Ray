@@ -1,16 +1,18 @@
-# Release Notes — v1.13
+# Release Notes — v1.14
 
-**Professional Mode**
-Hide the built-in node pickers entirely and write `config.json` by hand for full control over your Xray setup. A new "Load template" button gives you a ready-made skeleton (fwmark 255, tun-in, socks-test-in, etc.) to edit instead of starting from scratch, plus in-app documentation covering the rules your config must follow (fwmark, the mandatory tun inbound, DNS routing order...) so a misconfigured tunnel doesn't silently deadlock.
+### Built-in Direct Routing Pseudo-Node
 
-**VLESS Encryption Support**
-Added the outbound-side `encryption` field for VLESS (post-quantum, per XTLS/Xray-core#5067), read from and written to link query params — defaults to "none" as before when not specified.
+Magic V2Ray can now run **xray-core as a pure router**, when not using any proxy node.
 
-**FinalMask Support for Nodes**
-A network-agnostic masking layer now works uniformly across every protocol — VMess, VLESS, Trojan, Shadowsocks, and Hysteria2. On import/export, FinalMask merges intelligently with any existing obfuscation layer (like Hysteria2's salamander) instead of overwriting it, and a malformed FinalMask never takes the whole node down — it just falls back to running without the extra masking.
+This allows your Android device to act as a **VPN gateway**, routing hotspot traffic through the module's `tun0` interface.
 
-**Bug Fixes**
-Fixed node confirmation before connecting.
+#### Example: Use Your Phone as a VPN Gateway
+
+1. Enable **1.1.1.1** and connect on your Android device.
+2. Open the **Magic V2Ray WebUI**, select the **FREEDOM** node, and press **Start Engine**.
+3. Enable **Wi-Fi Hotspot** and connect another device to it.
+
+Once started, **xray-core acts as the gateway**, forwarding traffic from connected hotspot devices through `tun0`.
 
 ---
 
