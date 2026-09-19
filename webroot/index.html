@@ -16,6 +16,7 @@
                      onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showCurrentIp();}">Status: Checking...</div>
                 <div class="status-ip" id="status-ip" hidden></div>
             </div>
+            <div class="header-actions">
             <div class="lang-switcher">
                 <select id="lang-select" onchange="changeLanguage(this.value)" style="padding: 4px 8px; border-radius: 4px; background: var(--bg-panel, #222); color: var(--text-main, #fff); border: 1px solid #444;">
                     <option value="en">English</option>
@@ -24,16 +25,23 @@
                     <option value="zh-tw">繁體中文</option>
                 </select>
             </div>
+            <div class="tab-menu">
+                <button type="button" id="tab-menu-btn" class="tab-menu-btn"
+                        aria-haspopup="menu" aria-expanded="false" aria-controls="tab-menu"
+                        data-i18n-aria="tab_menu" aria-label="Menu" onclick="toggleTabMenu(event)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+                </button>
+                <div id="tab-menu" class="tab-menu-dropdown" role="menu" aria-labelledby="tab-menu-btn">
+                    <button type="button" role="menuitem" class="tab-menu-item active" aria-current="page" data-tab="tab-dashboard" onclick="switchTab('tab-dashboard', event)" data-i18n="tab_dashboard">Dashboard</button>
+                    <button type="button" role="menuitem" class="tab-menu-item" data-tab="tab-settings" onclick="switchTab('tab-settings', event)" data-i18n="tab_settings">Traffic Settings</button>
+                    <button type="button" role="menuitem" class="tab-menu-item" data-tab="tab-routing" onclick="switchTab('tab-routing', event)" data-i18n="tab_routing">Routing Settings</button>
+                    <button type="button" role="menuitem" class="tab-menu-item" data-tab="tab-hosts" onclick="switchTab('tab-hosts', event)" data-i18n="tab_hosts">Custom Hosts</button>
+                    <button type="button" role="menuitem" class="tab-menu-item" data-tab="tab-log" onclick="switchTab('tab-log', event)" data-i18n="tab_log">Xray Log</button>
+                    <button type="button" role="menuitem" class="tab-menu-item" data-tab="tab-latency" onclick="switchTab('tab-latency', event)" data-i18n="tab_latency">Network Latency</button>
+                </div>
+            </div>
+            </div>
         </header>
-
-        <div class="tabs-navigation">
-            <button class="tab-btn active" data-tab="tab-dashboard" onclick="switchTab('tab-dashboard', event)" data-i18n="tab_dashboard">Dashboard</button>
-            <button class="tab-btn" data-tab="tab-settings" onclick="switchTab('tab-settings', event)" data-i18n="tab_settings">Traffic Settings</button>
-            <button class="tab-btn" data-tab="tab-routing" onclick="switchTab('tab-routing', event)" data-i18n="tab_routing">Routing Settings</button>
-            <button class="tab-btn" data-tab="tab-hosts" onclick="switchTab('tab-hosts', event)" data-i18n="tab_hosts">Custom Hosts</button>
-            <button class="tab-btn" data-tab="tab-log" onclick="switchTab('tab-log', event)" data-i18n="tab_log">Xray Log</button>
-            <button class="tab-btn" data-tab="tab-latency" onclick="switchTab('tab-latency', event)" data-i18n="tab_latency">Network Latency</button>
-        </div>
 
         <div id="tab-dashboard" class="tab-content active">
             <section class="control-actions">

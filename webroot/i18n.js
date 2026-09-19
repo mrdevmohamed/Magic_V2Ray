@@ -292,6 +292,7 @@ const i18n = {
 
         // Latency monitor tab
         tab_latency: "Network latency",
+        tab_menu: "Navigation menu",
         latency_enable_monitor: "Enable monitor",
         latency_net_iface: "Interface",
         latency_net_ipv4: "IPv4",
@@ -655,6 +656,7 @@ const i18n = {
 
         // Latency monitor tab
         tab_latency: "网络延迟",
+        tab_menu: "导航菜单",
         latency_enable_monitor: "启用监控",
         latency_net_iface: "网络接口",
         latency_net_ipv4: "IPv4",
@@ -1018,6 +1020,7 @@ const i18n = {
 
         // Latency monitor tab
         tab_latency: "網路延遲",
+        tab_menu: "導覽選單",
         latency_enable_monitor: "啟用監控",
         latency_net_iface: "網路介面",
         latency_net_ipv4: "IPv4",
@@ -1381,6 +1384,7 @@ const i18n = {
 
         // Latency monitor tab
         tab_latency: "Độ trễ mạng",
+        tab_menu: "Menu điều hướng",
         latency_enable_monitor: "Bật theo dõi",
         latency_net_iface: "Giao diện mạng",
         latency_net_ipv4: "IPv4",

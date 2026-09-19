@@ -223,51 +223,95 @@ header h1 {
 }
 .lang-switcher select:hover { border-color: var(--md-primary); }
 
-/* ===== Navigation Tabs (MD3 style) ===== */
-.tabs-navigation {
+/* ===== Tab menu (dropdown, top-right of the app bar) ===== */
+.header-actions {
     display: flex;
-    gap: 0;
-    margin-bottom: 20px;
-    border-bottom: 1px solid var(--md-outline-variant);
-    overflow-x: auto;
-    scrollbar-width: none;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    margin-left: 12px;
 }
-.tabs-navigation::-webkit-scrollbar { display: none; }
 
-.tab-btn {
-    position: relative;
-    background: none;
-    border: none;
+.tab-menu { position: relative; }
+
+.tab-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: var(--md-surface-3);
+    border: 1px solid var(--md-outline-variant);
+    border-radius: var(--md-shape-full);
     color: var(--md-on-surface-variant);
-    padding: 14px 20px 12px;
-    border-radius: 0;
     cursor: pointer;
-    font-family: var(--md-font-body);
-    font-weight: 600;
-    font-size: 14px;
-    letter-spacing: .1px;
-    white-space: nowrap;
-    transition: color .2s var(--md-motion-standard);
-    outline: none;
+    transition: border-color .2s, color .2s;
+    -webkit-tap-highlight-color: transparent;
 }
-
-.tab-btn::after {
-    content: '';
-    position: absolute;
-    bottom: -1px; left: 50%; right: 50%;
-    height: 3px;
-    background: var(--md-primary);
-    border-radius: 3px 3px 0 0;
-    transition: left .25s var(--md-motion-enter), right .25s var(--md-motion-enter);
-}
-
-.tab-btn:hover { color: var(--md-on-surface); }
-
-.tab-btn.active {
+.tab-menu-btn:hover,
+.tab-menu-btn[aria-expanded="true"] {
+    border-color: var(--md-primary);
     color: var(--md-primary);
 }
-.tab-btn.active::after {
-    left: 16px; right: 16px;
+.tab-menu-btn:focus-visible,
+.tab-menu-item:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+}
+
+.tab-menu-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 700;
+    min-width: 220px;
+    max-width: calc(100vw - 32px);
+    padding: 6px;
+    background: var(--md-surface-3);
+    border: 1px solid var(--md-outline-variant);
+    border-radius: var(--md-shape-md);
+    box-shadow: var(--md-shadow-3);
+    transform-origin: top right;
+    transform: scale(.95);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform .15s var(--md-motion-enter), opacity .15s var(--md-motion-enter), visibility 0s .15s;
+}
+.tab-menu-dropdown.show {
+    transform: scale(1);
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+}
+
+.tab-menu-item {
+    display: block;
+    width: 100%;
+    padding: 11px 14px;
+    background: none;
+    border: none;
+    border-radius: var(--md-shape-sm);
+    color: var(--md-on-surface);
+    font-family: var(--md-font-body);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: .1px;
+    text-align: left;
+    cursor: pointer;
+    transition: background .15s;
+}
+.tab-menu-item:hover { background: var(--md-surface-5); }
+.tab-menu-item.active {
+    background: var(--md-secondary-container);
+    color: var(--md-on-secondary-container);
+    font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tab-menu-dropdown { transition: none; }
 }
 
 .tab-content { display: none; }
@@ -1489,7 +1533,6 @@ select option:active {
 /* ===== Responsive small screens ===== */
 @media (max-width: 400px) {
     .control-actions .btn { padding: 10px 12px; font-size: 12.5px; }
-    .tab-btn { padding: 12px 14px; font-size: 13px; }
 }
 
 /* ===== Log Tab ===== */

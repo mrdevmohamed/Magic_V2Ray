@@ -11,6 +11,12 @@ function applyI18n() {
             el.setAttribute('placeholder', i18n[currentLang][key]);
         }
     });
+    document.querySelectorAll('[data-i18n-aria]').forEach(el => {
+        const key = el.getAttribute('data-i18n-aria');
+        if (i18n[currentLang][key]) {
+            el.setAttribute('aria-label', i18n[currentLang][key]);
+        }
+    });
     const select = document.getElementById('lang-select');
     if (select) select.value = currentLang;
 }
@@ -2448,7 +2454,51 @@ function closeAllMenus() {
     document.querySelectorAll('.category-dropdown-menu').forEach(menu => menu.classList.remove('show'));
     document.querySelectorAll('.node-dropdown-menu').forEach(menu => menu.classList.remove('show'));
     closeImportAddMenu();
+    closeTabMenu();
 }
+
+function toggleTabMenu(event) {
+    event.stopPropagation();
+    const menu = document.getElementById('tab-menu');
+    const isOpen = menu.classList.contains('show');
+    closeAllMenus();
+    if (!isOpen) {
+        menu.classList.add('show');
+        document.getElementById('tab-menu-btn').setAttribute('aria-expanded', 'true');
+        const current = menu.querySelector('.tab-menu-item.active') || menu.querySelector('.tab-menu-item');
+        if (current) current.focus();
+    }
+}
+
+function closeTabMenu() {
+    const menu = document.getElementById('tab-menu');
+    if (menu) menu.classList.remove('show');
+    const btn = document.getElementById('tab-menu-btn');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+// Keyboard support for the tab menu: Esc closes and returns focus to the
+// button, arrow keys / Home / End move between items.
+document.addEventListener('keydown', (e) => {
+    const menu = document.getElementById('tab-menu');
+    if (!menu || !menu.classList.contains('show')) return;
+    if (e.key === 'Escape') {
+        closeTabMenu();
+        document.getElementById('tab-menu-btn').focus();
+        return;
+    }
+    const items = Array.from(menu.querySelectorAll('.tab-menu-item'));
+    const i = items.indexOf(document.activeElement);
+    let next = -1;
+    if (e.key === 'ArrowDown') next = (i + 1) % items.length;
+    else if (e.key === 'ArrowUp') next = (i - 1 + items.length) % items.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = items.length - 1;
+    if (next >= 0) {
+        e.preventDefault();
+        items[next].focus();
+    }
+});
 
 function toggleImportAddMenu(event) {
     event.stopPropagation();
@@ -2728,14 +2778,20 @@ function escapeHtml(str) {
  
 function switchTab(tabId, evt) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-menu-item').forEach(el => {
+        el.classList.remove('active');
+        el.removeAttribute('aria-current');
+    });
 
     document.getElementById(tabId).classList.add('active');
     // Was reading the deprecated global `event`, which is undefined in strict
     // mode and on non-Chromium engines. Fall back to matching by tab id.
     const trigger = (evt && evt.currentTarget)
-        || document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
-    if (trigger) trigger.classList.add('active');
+        || document.querySelector(`.tab-menu-item[data-tab="${tabId}"]`);
+    if (trigger) {
+        trigger.classList.add('active');
+        trigger.setAttribute('aria-current', 'page');
+    }
 
     if (tabId === 'tab-log') {
         startLogAutoRefresh();
