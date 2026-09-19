@@ -2813,6 +2813,53 @@ function switchTab(tabId, evt) {
     if (tabId === 'tab-hosts') {
         onHostsTabOpened();
     }
+
+    if (tabId === 'tab-about') {
+        onAboutTabOpened();
+    }
+}
+
+// ===== About tab =====
+// Static content lives in index.html; URLs live in ABOUT_LINKS (vars.js).
+// One-shot setup on first open: fill in the hrefs (hiding any row whose URL
+// is empty, e.g. the Telegram group until its link is set) and read the
+// module version from module.prop.
+let _aboutInited = false;
+
+function onAboutTabOpened() {
+    if (_aboutInited) return;
+    _aboutInited = true;
+
+    document.querySelectorAll('[data-about-link]').forEach(el => {
+        const url = ABOUT_LINKS[el.dataset.aboutLink];
+        if (!/^https?:\/\/\S+$/i.test(url || '')) {
+            el.hidden = true;
+            return;
+        }
+        el.href = url;
+    });
+
+    execShell(`grep -m1 '^version=' ${shQuote(MODDIR + '/module.prop')} | cut -d= -f2-`, (out) => {
+        const version = (out || '').trim();
+        if (!version || version === 'ERROR') return;
+        document.getElementById('about-version').textContent = version;
+        document.getElementById('about-version-row').hidden = false;
+    });
+}
+
+// WebUI WebViews don't reliably hand target=_blank links to a browser, so go
+// through the root shell (we already have one) and only fall back to
+// window.open if that doesn't report success. Only http(s) URLs pass.
+function openExternalLink(event, el) {
+    event.preventDefault();
+    const url = el.getAttribute('href') || '';
+    if (!/^https?:\/\/[^\s'"]+$/i.test(url)) return;
+    execShell(
+        `am start --user 0 -a android.intent.action.VIEW -d ${shQuote(url)} >/dev/null 2>&1 && echo ok`,
+        (out) => {
+            if (out !== 'ok') window.open(url, '_blank', 'noopener');
+        }
+    );
 }
 
 function toggleSubSettingField(triggerId, subPanelId) {

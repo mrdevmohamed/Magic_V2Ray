@@ -39,6 +39,7 @@
                     <button type="button" role="menuitem" class="tab-menu-item" data-tab="tab-hosts" onclick="switchTab('tab-hosts', event)" data-i18n="tab_hosts">Custom Hosts</button>
                     <button type="button" role="menuitem" class="tab-menu-item" data-tab="tab-log" onclick="switchTab('tab-log', event)" data-i18n="tab_log">Xray Log</button>
                     <button type="button" role="menuitem" class="tab-menu-item" data-tab="tab-latency" onclick="switchTab('tab-latency', event)" data-i18n="tab_latency">Network Latency</button>
+                    <button type="button" role="menuitem" class="tab-menu-item" data-tab="tab-about" onclick="switchTab('tab-about', event)" data-i18n="tab_about">About</button>
                 </div>
             </div>
             </div>
@@ -386,6 +387,43 @@
                         <option value="500">500</option>
                         <option value="1000">1000</option>
                     </select>
+                </div>
+            </section>
+        </div>
+
+        <!-- ===== About Tab ===== -->
+        <!-- Links come from the ABOUT_* / SUPPORT_* constants in vars.js
+             (see initAboutTab in main.js); a row whose URL is empty is hidden. -->
+        <div id="tab-about" class="tab-content">
+            <section class="settings-form-panel about-panel">
+                <div class="settings-group-box about-hero">
+                    <h3>Magic V2Ray</h3>
+                    <p class="about-tagline" data-i18n="about_tagline">System-wide proxy for rooted Android, powered by Xray-core.</p>
+                    <p class="about-version" id="about-version-row" hidden><span data-i18n="about_version">Module version</span>: <b id="about-version"></b></p>
+                    <p class="about-intro" data-i18n="about_intro">Magic V2Ray runs as a root daemon and marks traffic at the Netfilter layer, so every app — system UIDs and hotspot clients included — goes through your proxy without taking Android's single VPN slot.</p>
+                </div>
+
+                <div class="settings-group-box">
+                    <h4 data-i18n="about_author_title">Author</h4>
+                    <a class="about-link" data-about-link="author" href="#" target="_blank" rel="noopener noreferrer" onclick="openExternalLink(event, this)"><span class="about-link-text"><span>HuskyDG</span><small>@vincentng295 · GitHub</small></span><svg class="about-link-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+                </div>
+
+                <div class="settings-group-box">
+                    <h4 data-i18n="about_links_title">Links &amp; support</h4>
+                    <a class="about-link" data-about-link="telegram" href="#" target="_blank" rel="noopener noreferrer" onclick="openExternalLink(event, this)"><span data-i18n="about_link_telegram">Telegram support group</span><svg class="about-link-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+                    <a class="about-link" data-about-link="repo" href="#" target="_blank" rel="noopener noreferrer" onclick="openExternalLink(event, this)"><span data-i18n="about_link_github">Source code on GitHub</span><svg class="about-link-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+                    <a class="about-link" data-about-link="releases" href="#" target="_blank" rel="noopener noreferrer" onclick="openExternalLink(event, this)"><span data-i18n="about_link_releases">Latest release</span><svg class="about-link-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+                    <a class="about-link" data-about-link="issues" href="#" target="_blank" rel="noopener noreferrer" onclick="openExternalLink(event, this)"><span data-i18n="about_link_issues">Report a bug or request a feature</span><svg class="about-link-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+                    <a class="about-link" data-about-link="website" href="#" target="_blank" rel="noopener noreferrer" onclick="openExternalLink(event, this)"><span data-i18n="about_link_website">Website</span><svg class="about-link-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+                </div>
+
+                <div class="settings-group-box">
+                    <h4 data-i18n="about_credits_title">Credits</h4>
+                    <p class="about-intro" data-i18n="about_credits_desc">Built on pre-built binaries from these open-source projects:</p>
+                    <a class="about-link" data-about-link="xray" href="#" target="_blank" rel="noopener noreferrer" onclick="openExternalLink(event, this)"><span>Xray-core</span><svg class="about-link-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+                    <a class="about-link" data-about-link="openxtun" href="#" target="_blank" rel="noopener noreferrer" onclick="openExternalLink(event, this)"><span>openxtun</span><svg class="about-link-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+                    <a class="about-link" data-about-link="curl" href="#" target="_blank" rel="noopener noreferrer" onclick="openExternalLink(event, this)"><span>curl-android</span><svg class="about-link-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+                    <p class="about-license" data-i18n="about_license">Open source under the GNU General Public License v3.0.</p>
                 </div>
             </section>
         </div>

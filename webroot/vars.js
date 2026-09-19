@@ -321,3 +321,22 @@ let _hostsLoadedCount = 0;
 let _hostsListEndReached = false;
 // null = "add" mode; otherwise the normalized domain currently being edited.
 let currentEditingHostDomain = null;
+
+// About tab (see initAboutTab in main.js).
+// A link whose URL is empty is hidden, so SUPPORT_TELEGRAM_URL can stay ""
+// until the support group link is filled in (e.g. "https://t.me/yourgroup").
+const ABOUT_AUTHOR_GITHUB = "vincentng295";
+const ABOUT_REPO_URL = "https://github.com/vincentng295/Magic_V2Ray";
+const ABOUT_WEBSITE_URL = "https://magicv2ray.duckdns.org/";
+const SUPPORT_TELEGRAM_URL = "";
+const ABOUT_LINKS = {
+    author: `https://github.com/${ABOUT_AUTHOR_GITHUB}`,
+    telegram: SUPPORT_TELEGRAM_URL,
+    repo: ABOUT_REPO_URL,
+    releases: `${ABOUT_REPO_URL}/releases/latest`,
+    issues: `${ABOUT_REPO_URL}/issues`,
+    website: ABOUT_WEBSITE_URL,
+    xray: "https://github.com/XTLS/Xray-core",
+    openxtun: "https://github.com/vincentng295/openxtun",
+    curl: "https://github.com/vvb2060/curl-android"
+};
