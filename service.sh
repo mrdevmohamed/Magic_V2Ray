@@ -1014,7 +1014,7 @@ apply_routing_rules() {
         # Step 1: Disable IPv6 at system level and block via routing rule
         # (If in mode 1 or 2, we let non-managed interfaces handle IPv6 normally)
         if [ "$network_mode" != "1" ] && [ "$network_mode" != "2" ]; then
-            $ip -6 rule add unreachable priority 1010
+            $ip -6 rule add fwmark 1 unreachable priority 1010
         fi
 
         # Step 2: Create Mangle chain for local IPv6 output traffic (Drop all IPv6)
