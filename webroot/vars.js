@@ -72,6 +72,10 @@ let advSettings = {
     loglevel: "none",
     sniffing: true,
     routeOnly: false,
+    // Xray routing.domainStrategy. "auto" keeps the pre-existing behavior
+    // (AsIs while Fake DNS is on, IPIfNonMatch otherwise); the other values
+    // are the literal Xray strategies. Resolved in convert_uri_to_xray_json().
+    domainStrategy: "auto",
     enableIPv6: false,
     preferIpv6: false,
     networkMode: 0,

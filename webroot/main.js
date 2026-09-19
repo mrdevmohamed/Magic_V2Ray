@@ -2934,6 +2934,7 @@ function bindSettingsToFormView() {
 
     if (!Array.isArray(advSettings.routingRules)) advSettings.routingRules = [];
     renderRoutingRules();
+    syncDomainStrategyForm();
 
     syncBypassIfaceState();
     bindProModeToFormView();
@@ -3225,6 +3226,41 @@ async function deleteRoutingRule(index) {
     renderRoutingRules();
     persistRoutingRules();
     showToast(t('toast_rule_deleted'), 'success');
+}
+
+// ===== Routing domainStrategy =====
+// Same save-on-change behavior as the rule list below: the setting goes to
+// disk and the active config is regenerated (soft reload, no iptables
+// rebuild — routing.domainStrategy is Xray-internal).
+const DOMAIN_STRATEGY_VALUES = ['auto', 'AsIs', 'IPIfNonMatch', 'IPOnDemand'];
+const DOMAIN_STRATEGY_HINT_KEYS = {
+    auto: 'hint_ds_auto',
+    AsIs: 'hint_ds_asis',
+    IPIfNonMatch: 'hint_ds_ifnonmatch',
+    IPOnDemand: 'hint_ds_ondemand'
+};
+
+function _currentDomainStrategy() {
+    return DOMAIN_STRATEGY_VALUES.includes(advSettings.domainStrategy) ? advSettings.domainStrategy : 'auto';
+}
+
+function syncDomainStrategyForm() {
+    const select = document.getElementById('set-domain-strategy');
+    const value = _currentDomainStrategy();
+    if (select) select.value = value;
+    const hint = document.getElementById('domain-strategy-hint');
+    if (hint) {
+        const key = DOMAIN_STRATEGY_HINT_KEYS[value];
+        hint.setAttribute('data-i18n', key); // so a language switch re-translates it
+        hint.innerHTML = t(key);
+    }
+}
+
+function onDomainStrategyChange(select) {
+    const value = DOMAIN_STRATEGY_VALUES.includes(select.value) ? select.value : 'auto';
+    advSettings.domainStrategy = value;
+    syncDomainStrategyForm();
+    persistRoutingRules();
 }
 
 // Persists advSettings (including routingRules) to disk and, if a proxy is

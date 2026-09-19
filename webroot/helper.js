@@ -512,6 +512,7 @@ function convert_uri_to_xray_json(uri, optional_settings) {
         dnsViaProxy: true,
         localDns: false,
         fakeDnsLocal: false,
+        domainStrategy: "auto",
         vpnDns: "1.1.1.1",
         foreignDns: "1.1.1.1",
         domesticDns: "223.5.5.5",
@@ -1175,7 +1176,13 @@ function convert_uri_to_xray_json(uri, optional_settings) {
         // Build a structured DNS server list from the explicit fields.
         dnsServers = [];
 
-        // 1. FakeIP entry — sits first so it intercepts all domain queries.
+        // 1. FakeDNS entry — sits first so it intercepts all domain queries.
+        // Xray only recognises the literal address "fakedns" for this; any
+        // other string (e.g. "fakeip", the sing-box spelling) is treated as
+        // a hostname and turned into a UDP DNS client for "<name>:53".
+        // No expectIPs here: FakeDNS answers come from 198.18.0.0/15, which
+        // is inside geoip:private, so "geoip:!private" would discard every
+        // fake answer and silently fall through to the real resolvers.
         if (useFakeIp) {
             dnsServers.push({
                 address: "fakedns",
@@ -1222,6 +1229,14 @@ function convert_uri_to_xray_json(uri, optional_settings) {
             });
         }
     }
+
+    // routing.domainStrategy: honor an explicit Xray strategy from the Routing
+    // tab; anything else ("auto", missing on settings saved by older
+    // versions, or a corrupted value) falls back to the original behavior.
+    const ROUTING_DOMAIN_STRATEGIES = ["AsIs", "IPIfNonMatch", "IPOnDemand"];
+    const routingDomainStrategy = ROUTING_DOMAIN_STRATEGIES.includes(settings.domainStrategy)
+        ? settings.domainStrategy
+        : (useFakeIp ? "AsIs" : "IPIfNonMatch");
 
     const fullConfig = {
         log: { 
@@ -1289,7 +1304,7 @@ function convert_uri_to_xray_json(uri, optional_settings) {
             }
         ],
         routing: {
-            "domainStrategy": useFakeIp ? "AsIs" : "IPIfNonMatch",
+            "domainStrategy": routingDomainStrategy,
             "rules": [
                 // Narrow rule first (2 conditions): user DNS from socks-test-in
                 // (manual test path) and tun-in (real device DNS, now that

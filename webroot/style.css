@@ -794,6 +794,14 @@ textarea::placeholder { color: var(--md-outline); }
     letter-spacing: -.2px;
 }
 
+.routing-strategy-box { margin-bottom: 14px; }
+.routing-strategy-hint {
+    margin: 12px 0 0;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--md-on-surface-variant);
+}
+
 .routing-empty-state {
     text-align: center;
     padding: 40px 16px;
