@@ -2895,7 +2895,6 @@ function bindSettingsToFormView() {
 function saveAdvancedSettingsForm(isLangOnly = false) {    advSettings.loglevel = document.getElementById('set-loglevel').value;
     advSettings.sniffing = document.getElementById('set-sniffing').checked;
     advSettings.routeOnly = document.getElementById('set-routeonly').checked;
-    advSettings.enableIPv6 = document.getElementById('set-enableipv6').checked;
     advSettings.preferIpv6 = document.getElementById('set-preferipv6').checked;
     advSettings.dnsViaProxy = document.getElementById('set-dnsviaproxy').checked;
     advSettings.pinnedPeerCertSha256 = document.getElementById('set-pinned-cert').value.trim();
@@ -2916,21 +2915,35 @@ function saveAdvancedSettingsForm(isLangOnly = false) {    advSettings.loglevel 
     advSettings.fragment_interval = document.getElementById('set-fragment-interval').value || "10-20";
 
     advSettings.mtu = parseInt(document.getElementById('set-mtu').value) || 1350;
-    advSettings.networkMode = parseInt(document.getElementById('set-networkmode').value) || 0;
-    advSettings.allowTether = document.getElementById('set-allowtether').checked;
 
     advSettings.lang = currentLang;
 
     writeFileB64(SETTINGS_FILE, utoa(JSON.stringify(advSettings)), () => {
         if (isLangOnly) return;
+        showToast(t('toast_settings_saved'), "success");
+        // Nothing on this form is read by apply_routing_rules, so the
+        // default soft reload is enough: swap the xray process, leave the
+        // iptables/policy routing rules as they are. The OS-level switches
+        // (apply-on mode, IPv6, tether, bypass interfaces) live on the
+        // Network tab and are saved by saveNetworkSettingsForm() below.
+        applyActiveConfig();
+    });
+}
+
+// Network tab: the switches apply_routing_rules reads directly (apply-on
+// mode, IPv6, tether, bypass interfaces). Unlike a node switch or an Xray-level
+// routing-rule edit, changing them requires the iptables rules to be torn
+// down and rebuilt, so this always forces the full restart.
+// Only touches its own fields on advSettings; everything else already lives
+// in memory from the last load/save of the Traffic form.
+function saveNetworkSettingsForm() {
+    advSettings.networkMode = parseInt(document.getElementById('set-networkmode').value) || 0;
+    advSettings.enableIPv6 = document.getElementById('set-enableipv6').checked;
+    advSettings.allowTether = document.getElementById('set-allowtether').checked;
+
+    writeFileB64(SETTINGS_FILE, utoa(JSON.stringify(advSettings)), () => {
         applyBypassIfaceForm(() => {
             showToast(t('toast_settings_saved'), "success");
-            // This form can change networkMode/allowTether/enableIPv6/bypass
-            // interfaces, which apply_routing_rules reads directly — unlike a
-            // node switch or an Xray-level routing-rule edit, those DO
-            // require the iptables rules to be torn down and rebuilt, so
-            // this path keeps the full restart rather than the soft reload
-            // applyActiveConfig() defaults to.
             applyActiveConfig({ force: true });
         });
     });
@@ -2945,8 +2958,8 @@ function saveAdvancedSettingsForm(isLangOnly = false) {    advSettings.loglevel 
 // Unlike the IP Hunter panel, this one does NOT write on every toggle/input
 // change. The checkbox only shows/hides the sub-fields (toggleSubSettingField),
 // and the list field is plain text — nothing is persisted to disk until the
-// user presses "Save & Apply Configurations", which calls
-// applyBypassIfaceForm() below as part of saveAdvancedSettingsForm().
+// user presses "Save & Restart Engine" on the Network tab, which calls
+// applyBypassIfaceForm() below as part of saveNetworkSettingsForm().
 
 function syncBypassIfaceState() {
     execShell(
@@ -2974,8 +2987,8 @@ function sanitizeBypassIfaceList(raw) {
 }
 
 // Persists the current state of the bypass-interface form to disk. Called
-// only from saveAdvancedSettingsForm() (i.e. the "Save & Apply
-// Configurations" button), not on every checkbox/input change.
+// only from saveNetworkSettingsForm() (the Network tab's save button), not
+// on every checkbox/input change.
 function applyBypassIfaceForm(callback) {
     const toggle = document.getElementById('set-bypassiface');
     const input = document.getElementById('set-bypassiface-list');

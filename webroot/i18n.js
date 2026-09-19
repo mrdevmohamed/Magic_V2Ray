@@ -2,6 +2,7 @@ const i18n = {
     en: {
         tab_dashboard: "Dashboard",
         tab_settings: "Traffic settings",
+        tab_network: "Network settings",
         btn_start: "Start engine",
         btn_stop: "Stop engine",
         import_title: "Import configuration profile",
@@ -88,7 +89,7 @@ const i18n = {
         pro_doc_socks: "<b>socks-test-in</b> — keep a SOCKS inbound on <code>127.17.1.3:808</code> tagged <code>socks-test-in</code>. The latency / IP-check buttons dial that address; drop it and those tools stop working (traffic itself is unaffected).",
         pro_doc_direct: "<b>direct and block outbounds</b> — keep a <code>freedom</code> outbound tagged <code>direct</code> (with mark 255 and <code>domainStrategy: UseIP</code>) and a <code>blackhole</code> outbound tagged <code>block</code>. Routing rules reference those tags by name.",
         pro_doc_dns: "<b>DNS</b> — send port 53 to <code>direct</code> before any other rule. Xray's own internal lookups carry no inboundTag, so without that rule they fall through to outbounds[0] and get proxied, which can deadlock a tunnel that is still coming up.",
-        pro_doc_tabs: "<b>While professional mode is on</b>, the Traffic and Routing tabs no longer shape config.json — only the OS-level switches there (interface mode, tether, bypass interfaces) still apply.",
+        pro_doc_tabs: "<b>While professional mode is on</b>, the Traffic and Routing tabs no longer shape config.json — only the Network tab (interface mode, tether, bypass interfaces) still applies.",
         pro_placeholder: "Paste your full Xray config.json here...",
         btn_pro_apply: "Save & Apply",
         btn_pro_validate: "Validate",
@@ -116,6 +117,10 @@ const i18n = {
         pro_warn_no_rules: "routing.rules is empty",
         pro_warn_no_dns_rule: "no routing rule for port 53 — DNS may be proxied and loop",
         btn_save_settings: "Save & apply configurations",
+        network_settings_title: "Network settings",
+        group_network_os: "Interfaces, tethering & IPv6",
+        network_restart_notice: "Saving on this tab fully restarts the engine, because these options change how traffic is routed at the OS level.",
+        btn_save_network: "Save & restart engine",
         menu_edit: "Edit config",
 
         // Configuration settings
@@ -366,6 +371,7 @@ const i18n = {
     zh: {
         tab_dashboard: "仪表盘",
         tab_settings: "流量设置",
+        tab_network: "网络设置",
         btn_start: "启动内核",
         btn_stop: "停止内核",
         import_title: "导入配置文件",
@@ -452,7 +458,7 @@ const i18n = {
         pro_doc_socks: "<b>socks-test-in</b> — 保留监听 <code>127.17.1.3:808</code>、标签为 <code>socks-test-in</code> 的 SOCKS 入站。延迟 / IP 检测按钮会连接该地址；删除后这些工具将失效（不影响正常流量）。",
         pro_doc_direct: "<b>direct 与 block 出站</b> — 保留标签 <code>direct</code> 的 <code>freedom</code> 出站（带 mark 255 与 <code>domainStrategy: UseIP</code>）以及标签 <code>block</code> 的 <code>blackhole</code> 出站，路由规则按标签名引用它们。",
         pro_doc_dns: "<b>DNS</b> — 在其他规则之前把 53 端口指向 <code>direct</code>。Xray 自身的内部查询不带 inboundTag，若无此规则会落到 outbounds[0] 被代理，可能导致隧道建立期间死锁。",
-        pro_doc_tabs: "<b>专业模式开启期间</b>，流量与路由选项卡不再影响 config.json，仅其中的系统级开关（网络模式、热点共享、绕过接口）仍然生效。",
+        pro_doc_tabs: "<b>专业模式开启期间</b>，流量与路由选项卡不再影响 config.json，仅网络选项卡中的系统级开关（网络模式、热点共享、绕过接口）仍然生效。",
         pro_placeholder: "在此粘贴完整的 Xray config.json...",
         btn_pro_apply: "保存并应用",
         btn_pro_validate: "校验",
@@ -480,6 +486,10 @@ const i18n = {
         pro_warn_no_rules: "routing.rules 为空",
         pro_warn_no_dns_rule: "缺少 53 端口的路由规则 — DNS 可能被代理并形成回环",
         btn_save_settings: "保存并应用配置",
+        network_settings_title: "网络设置",
+        group_network_os: "接口、共享与 IPv6",
+        network_restart_notice: "在此选项卡保存会完整重启引擎，因为这些选项会改变系统层面的流量路由方式。",
+        btn_save_network: "保存并重启引擎",
         menu_edit: "编辑配置",
 
         // Configuration settings
@@ -730,6 +740,7 @@ const i18n = {
     "zh-tw": {
         tab_dashboard: "儀表板",
         tab_settings: "流量設定",
+        tab_network: "網路設定",
         btn_start: "啟動核心",
         btn_stop: "停止核心",
         import_title: "匯入設定檔",
@@ -816,7 +827,7 @@ const i18n = {
         pro_doc_socks: "<b>socks-test-in</b> — 保留監聽 <code>127.17.1.3:808</code>、標籤為 <code>socks-test-in</code> 的 SOCKS 入站。延遲 / IP 檢測按鈕會連線該位址；刪除後這些工具將失效（不影響正常流量）。",
         pro_doc_direct: "<b>direct 與 block 出站</b> — 保留標籤 <code>direct</code> 的 <code>freedom</code> 出站（帶 mark 255 與 <code>domainStrategy: UseIP</code>）以及標籤 <code>block</code> 的 <code>blackhole</code> 出站，路由規則會依標籤名稱引用它們。",
         pro_doc_dns: "<b>DNS</b> — 在其他規則之前把 53 埠指向 <code>direct</code>。Xray 自身的內部查詢不帶 inboundTag，若無此規則會落到 outbounds[0] 被代理，可能導致隧道建立期間死結。",
-        pro_doc_tabs: "<b>專業模式開啟期間</b>，流量與路由分頁不再影響 config.json，僅其中的系統層級開關（網路模式、網路共用、略過介面）仍然生效。",
+        pro_doc_tabs: "<b>專業模式開啟期間</b>，流量與路由分頁不再影響 config.json，僅網路分頁中的系統層級開關（網路模式、網路共用、略過介面）仍然生效。",
         pro_placeholder: "在此貼上完整的 Xray config.json...",
         btn_pro_apply: "儲存並套用",
         btn_pro_validate: "驗證",
@@ -844,6 +855,10 @@ const i18n = {
         pro_warn_no_rules: "routing.rules 為空",
         pro_warn_no_dns_rule: "缺少 53 埠的路由規則 — DNS 可能被代理並形成迴圈",
         btn_save_settings: "儲存並套用設定",
+        network_settings_title: "網路設定",
+        group_network_os: "介面、網路共用與 IPv6",
+        network_restart_notice: "在此分頁儲存會完整重新啟動引擎，因為這些選項會改變系統層級的流量路由方式。",
+        btn_save_network: "儲存並重新啟動引擎",
         menu_edit: "編輯設定",
 
         // Configuration settings
@@ -1094,6 +1109,7 @@ const i18n = {
     vi: {
         tab_dashboard: "Bảng điều khiển",
         tab_settings: "Thiết lập lưu lượng",
+        tab_network: "Thiết lập mạng",
         btn_start: "Khởi động lõi",
         btn_stop: "Dừng hoạt động",
         import_title: "Nhập cấu hình / link bản tin",
@@ -1180,7 +1196,7 @@ const i18n = {
         pro_doc_socks: "<b>socks-test-in</b> — giữ một inbound SOCKS tại <code>127.17.1.3:808</code> với tag <code>socks-test-in</code>. Các nút đo độ trễ / kiểm tra IP kết nối tới địa chỉ này; bỏ đi thì các công cụ đó ngừng hoạt động (lưu lượng thật không bị ảnh hưởng).",
         pro_doc_direct: "<b>Outbound direct và block</b> — giữ một outbound <code>freedom</code> tag <code>direct</code> (kèm mark 255 và <code>domainStrategy: UseIP</code>) cùng một outbound <code>blackhole</code> tag <code>block</code>. Các rule định tuyến tham chiếu tới hai tag này theo tên.",
         pro_doc_dns: "<b>DNS</b> — đưa cổng 53 về <code>direct</code> trước mọi rule khác. Truy vấn nội bộ của chính Xray không mang inboundTag, nếu thiếu rule này chúng rơi xuống outbounds[0] và bị proxy, có thể gây deadlock ngay lúc đường hầm đang dựng.",
-        pro_doc_tabs: "<b>Khi chế độ chuyên nghiệp đang bật</b>, tab Traffic và Routing không còn tạo ra config.json nữa — chỉ các công tắc ở mức hệ thống (chế độ interface, chia sẻ mạng, bypass interface) là vẫn có tác dụng.",
+        pro_doc_tabs: "<b>Khi chế độ chuyên nghiệp đang bật</b>, tab Traffic và Routing không còn tạo ra config.json nữa — chỉ các công tắc ở mức hệ thống trong tab Network (chế độ interface, chia sẻ mạng, bypass interface) là vẫn có tác dụng.",
         pro_placeholder: "Dán toàn bộ config.json của Xray vào đây...",
         btn_pro_apply: "Lưu & Áp dụng",
         btn_pro_validate: "Kiểm tra",
@@ -1208,6 +1224,10 @@ const i18n = {
         pro_warn_no_rules: "routing.rules đang trống",
         pro_warn_no_dns_rule: "thiếu rule định tuyến cho cổng 53 — DNS có thể bị proxy và loop",
         btn_save_settings: "Lưu & áp dụng cấu hình",
+        network_settings_title: "Thiết lập mạng",
+        group_network_os: "Giao diện, chia sẻ mạng & IPv6",
+        network_restart_notice: "Lưu ở tab này sẽ khởi động lại hoàn toàn engine, vì các tùy chọn này thay đổi cách định tuyến lưu lượng ở mức hệ điều hành.",
+        btn_save_network: "Lưu & khởi động lại engine",
 
         // Configuration settings
         menu_edit: "Chỉnh sửa",

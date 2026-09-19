@@ -314,6 +314,18 @@ header h1 {
     .tab-menu-dropdown { transition: none; }
 }
 
+/* Heads-up shown at the top of tabs whose Save does a full engine restart */
+.restart-notice {
+    margin: 0 0 16px;
+    padding: 10px 14px;
+    background: var(--md-surface-2);
+    border-left: 3px solid var(--md-primary);
+    border-radius: var(--md-shape-xs);
+    color: var(--md-on-surface-variant);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
