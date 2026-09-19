@@ -1,16 +1,10 @@
-# Release Notes — v1.15
+# Release Notes — v1.16
 
-We are excited to announce the release of **Magic V2Ray v1.15**! This update introduces a dedicated Custom Hosts management tab, full support for custom blocklists such as AdGuard and AdBlock, file path storage at `/data/adb/magic_v2ray/hosts`, and live outbound IP checking directly from the status badge.
+Magic V2Ray v1.16 brings several key updates to improve navigation and core networking features. The application now includes a dedicated Network Settings tab where you can easily manage OS-level routing switches such as Interface Mode, IPv6 Toggle, Allow Tethering, and Bypass Network Interfaces. Saving changes in this tab automatically restarts the engine so that iptables and system routing rules apply immediately.
 
-## What's New
+In addition, a new About tab has been added to display the current version, description, author information, and open-source project credits, alongside useful resource links for support and updates. Navigation on mobile devices and smaller screens is now much easier thanks to a new compact dropdown menu that replaces the previous top horizontal bar. This menu also fully supports keyboard navigation using standard control keys.
 
-### Dedicated Custom Hosts Tab
-
-The Web UI now features a dedicated Custom Hosts tab, allowing you to easily view, search, add, edit, and delete domain-to-IP mappings. Custom rules are saved and loaded directly from `/data/adb/magic_v2ray/hosts` using the standard `/etc/hosts` format (`IP hostname`), making them human-readable and easy to manage manually or via external scripts. The interface includes an in-memory search bar and lazy-loaded rendering to maintain smooth performance even when handling large AdGuard or AdBlock lists. All entries are seamlessly merged into Xray's `dns.hosts` configuration on top of default resolutions, with support for removing built-in defaults using the `!` prefix.
-
-### Live IP Check & Active Node Badge
-
-The header status badge now displays the label of your active proxy node, built-in direct routing, or custom configuration mode. By simply tapping the status badge, the app queries `icanhazip.com` via Xray's SOCKS5 test inbound to immediately verify your active public IP address.
+Several system fixes and performance improvements have also been implemented in this release. The IPv6 routing logic was refined so that non-proxied traffic is no longer accidentally blocked.
 
 ---
 
