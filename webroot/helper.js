@@ -1178,9 +1178,8 @@ function convert_uri_to_xray_json(uri, optional_settings) {
         // 1. FakeIP entry — sits first so it intercepts all domain queries.
         if (useFakeIp) {
             dnsServers.push({
-                address: "fakeip",
-                domains: ["regexp:.+"],
-                expectIPs: ["geoip:!private"]
+                address: "fakedns",
+                domains: ["regexp:.+"]
             });
         }
 
@@ -1212,13 +1211,14 @@ function convert_uri_to_xray_json(uri, optional_settings) {
             dnsServers.push("1.1.1.1");
         }
     } else {
-        // Legacy / simple mode: two hardcoded servers, optional fakeip prepend.
-        dnsServers = LEGACY_DNS;
+        // Legacy / simple mode: two hardcoded servers, optional fakedns prepend.
+        // Copy first — unshift() on the shared LEGACY_DNS array would stack
+        // one more fakedns entry on it every time a config is generated.
+        dnsServers = [...LEGACY_DNS];
         if (useFakeIp) {
             dnsServers.unshift({
-                address: "fakeip",
-                domains: ["regexp:.+"],
-                expectIPs: ["geoip:!private"]
+                address: "fakedns",
+                domains: ["regexp:.+"]
             });
         }
     }
