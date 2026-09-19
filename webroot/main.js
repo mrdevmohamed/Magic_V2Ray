@@ -455,8 +455,13 @@ function loadState(callback) {
                 }
                 execShell(`cat '${CONFIG_JSON}' 2>/dev/null || echo ''`, (configRaw) => {
                     customConfigText = (configRaw || '').trim();
-                    bindSettingsToFormView();
-                    if (callback) callback();
+                    execShell(`cat '${HOSTS_FILE}' 2>/dev/null || echo ''`, (hostsRaw) => {
+                        initHostsFileIfNeeded(hostsRaw || '', (finalText) => {
+                            hostsFileText = finalText;
+                            bindSettingsToFormView();
+                            if (callback) callback();
+                        });
+                    });
                 });
             });
         });
@@ -2663,6 +2668,10 @@ function switchTab(tabId, evt) {
     if (tabId === 'tab-routing') {
         renderRoutingRules();
     }
+
+    if (tabId === 'tab-hosts') {
+        onHostsTabOpened();
+    }
 }
 
 function toggleSubSettingField(triggerId, subPanelId) {
@@ -2756,7 +2765,7 @@ function saveAdvancedSettingsForm(isLangOnly = false) {    advSettings.loglevel 
     advSettings.vpnDns = document.getElementById('set-vpndns').value.trim() || "1.1.1.1";
     advSettings.foreignDns = document.getElementById('set-foreign-dns').value.trim();
     advSettings.domesticDns = document.getElementById('set-domestic-dns').value.trim();
-    
+
     advSettings.mux = document.getElementById('set-mux').checked;
     advSettings.mux_connections = parseInt(document.getElementById('set-mux-connections').value) || 8;
 
@@ -3940,4 +3949,261 @@ function renderLatencyChart() {
     }
 
     svg.innerHTML = parts.join('');
+}
+
+// ===============================================================
+// Custom Hosts tab
+// ===============================================================
+// HOSTS_FILE is read once (a plain `cat`, done in loadState) and parsed
+// into `hostsEntries` entirely in JavaScript (parseHostsEntries, in
+// helper.js) — no awk/sed/grep/sort on the shell side for reading OR
+// writing. Every add/edit/delete updates `hostsEntries` in memory, then
+// writes the re-serialized text back with one writeFileB64() call.
+//
+// The list itself still only ever renders the current page's ~40 rows to
+// the DOM as the user scrolls — that's the part that actually mattered for
+// not freezing the WebView on a large file; holding the parsed array in
+// JS memory costs nothing by comparison.
+
+// Ensures HOSTS_FILE exists and is in the standard format, migrating
+// whatever was there before. Sets the global `hostsEntries` /
+// `hostsFileText` and hands the final text to `callback`.
+function initHostsFileIfNeeded(rawFromDisk, callback) {
+    const text = rawFromDisk || '';
+    const alreadyStandard = text.split('\n')[0] === HOSTS_HEADER_TEXT.split('\n')[0];
+
+    // Real "ip host..." lines parse straight away, regardless of format.
+    const entries = parseHostsEntries(text);
+
+    if (!alreadyStandard) {
+        // Anything left over is either the earlier app-only format
+        // ("domain ip1,ip2,ip3") or a hand-written file predating the
+        // header — pick up whatever comma/space-separated IP lists follow
+        // a non-IP first token.
+        text.split(/\r?\n/).forEach(rawLine => {
+            const line = rawLine.replace(/#.*/, '').trim();
+            if (!line) return;
+            const parts = line.split(/\s+/).filter(Boolean);
+            if (parts.length < 2 || isIpAddr(parts[0])) return; // real lines already parsed above
+            const domain = normalizeHostKey(parts[0]);
+            if (!domain) return;
+            const ips = parts.slice(1).join(' ').split(/[\s,]+/).filter(isIpAddr);
+            if (!ips.length) return;
+            const existing = entries.find(e => e.domain === domain);
+            if (existing) ips.forEach(ip => { if (!existing.ips.includes(ip)) existing.ips.push(ip); });
+            else entries.push({ domain, ips });
+        });
+
+        // A legacy settings.customHosts value (pre-tab, stored in
+        // settings.base64) only matters when nothing else was found.
+        if (!entries.length && advSettings && advSettings.customHosts) {
+            const { hosts } = parseCustomHosts(advSettings.customHosts);
+            Object.entries(hosts).forEach(([domain, value]) => {
+                if (Array.isArray(value)) entries.push({ domain, ips: value.filter(isIpAddr) });
+            });
+        }
+    }
+
+    if (advSettings && advSettings.customHosts) {
+        delete advSettings.customHosts;
+        writeFileB64(SETTINGS_FILE, utoa(JSON.stringify(advSettings)), () => {});
+    }
+
+    entries.sort((a, b) => a.domain.localeCompare(b.domain));
+    const finalText = serializeHostsFile(entries);
+    hostsEntries = entries;
+
+    if (finalText === text) {
+        callback(finalText);
+        return;
+    }
+    writeFileB64(HOSTS_FILE, finalText, () => callback(finalText));
+}
+
+// Re-serializes `hostsEntries` and writes it — the single write path used
+// by every add/edit/delete below.
+function persistHostsEntries(callback) {
+    const text = serializeHostsFile(hostsEntries);
+    hostsFileText = text;
+    writeFileB64(HOSTS_FILE, text, callback);
+}
+
+function resetHostsList() {
+    _hostsLoadedCount = 0;
+    _hostsListEndReached = false;
+    const container = document.getElementById('hosts-list-container');
+    if (container) container.innerHTML = '';
+    updateHostsEmptyState();
+}
+
+function onHostsTabOpened() {
+    document.getElementById('hosts-search-input').value = '';
+    _hostsSearchQuery = '';
+    loadHostsDomainList();
+}
+
+function onHostsSearchInput() {
+    const input = document.getElementById('hosts-search-input');
+    if (_hostsSearchTimer) clearTimeout(_hostsSearchTimer);
+    _hostsSearchTimer = setTimeout(() => {
+        _hostsSearchQuery = (input ? input.value : '').trim();
+        loadHostsDomainList();
+    }, 300);
+}
+
+// Filters the in-memory `hostsEntries` for the current search query and
+// renders the first page. Pure JS and synchronous — no disk/shell
+// round-trip needed to browse or search the list.
+function loadHostsDomainList() {
+    resetHostsList();
+    const q = _hostsSearchQuery.toLowerCase();
+    _hostsFilteredEntries = q
+        ? hostsEntries.filter(e => e.domain.toLowerCase().includes(q) || e.ips.some(ip => ip.includes(q)))
+        : hostsEntries;
+    loadHostsPage();
+}
+
+function onHostsListScroll() {
+    const container = document.getElementById('hosts-list-container');
+    if (!container) return;
+    if (container.scrollTop + container.clientHeight >= container.scrollHeight - 120) {
+        loadHostsPage();
+    }
+}
+
+function updateHostsEmptyState() {
+    const empty = document.getElementById('hosts-empty-state');
+    if (!empty) return;
+    empty.style.display = (_hostsFilteredEntries.length === 0) ? 'block' : 'none';
+}
+
+// Appends the next page of already-filtered entries to the DOM. This is
+// the only part that stays "lazy": the data is all in memory, but the DOM
+// only ever holds the rows the user has scrolled to.
+function loadHostsPage() {
+    if (_hostsListEndReached) return;
+    const pageEntries = _hostsFilteredEntries.slice(_hostsLoadedCount, _hostsLoadedCount + HOSTS_PAGE_SIZE);
+    updateHostsEmptyState();
+    if (!pageEntries.length) {
+        _hostsListEndReached = true;
+        return;
+    }
+    renderHostsPage(pageEntries);
+    _hostsLoadedCount += pageEntries.length;
+    if (_hostsLoadedCount >= _hostsFilteredEntries.length) _hostsListEndReached = true;
+}
+
+function renderHostsPage(entries) {
+    const container = document.getElementById('hosts-list-container');
+    if (!container) return;
+    entries.forEach(e => container.appendChild(buildHostRowEl(e.domain, e.ips)));
+}
+
+function buildHostRowEl(domain, ips) {
+    const row = document.createElement('div');
+    row.className = 'hosts-row';
+    row.dataset.domain = domain;
+
+    const info = document.createElement('div');
+    info.className = 'hosts-row-info';
+    info.onclick = () => openEditHostModal(domain, ips);
+
+    const domainEl = document.createElement('div');
+    domainEl.className = 'hosts-row-domain';
+    domainEl.textContent = domain;
+    info.appendChild(domainEl);
+
+    const valuesEl = document.createElement('div');
+    valuesEl.className = 'hosts-row-values';
+    ips.forEach(ip => {
+        const chip = document.createElement('span');
+        chip.className = 'hosts-ip-chip';
+        chip.textContent = ip;
+        valuesEl.appendChild(chip);
+    });
+    info.appendChild(valuesEl);
+    row.appendChild(info);
+
+    const actions = document.createElement('div');
+    actions.className = 'hosts-row-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'hosts-row-icon-btn';
+    editBtn.title = t('menu_edit');
+    editBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
+    editBtn.onclick = (e) => { e.stopPropagation(); openEditHostModal(domain, ips); };
+    actions.appendChild(editBtn);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'hosts-row-icon-btn btn-delete-item';
+    delBtn.title = t('btn_delete');
+    delBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+    delBtn.onclick = (e) => { e.stopPropagation(); deleteHostEntry(domain); };
+    actions.appendChild(delBtn);
+
+    row.appendChild(actions);
+    return row;
+}
+
+function openAddHostModal() {
+    currentEditingHostDomain = null;
+    document.getElementById('hosts-modal-title').innerHTML = t('modal_add_host_title');
+    const domainInput = document.getElementById('host-domain-input');
+    domainInput.value = '';
+    domainInput.disabled = false;
+    document.getElementById('host-ips-input').value = '';
+    document.getElementById('hosts-modal').style.display = 'block';
+}
+
+// The row already carries this domain's IPs (they came from `hostsEntries`
+// in memory), so editing needs no disk/shell round-trip.
+function openEditHostModal(domain, ips) {
+    currentEditingHostDomain = domain;
+    document.getElementById('hosts-modal-title').innerHTML = t('modal_edit_host_title');
+    const domainInput = document.getElementById('host-domain-input');
+    domainInput.value = domain;
+    domainInput.disabled = true;
+    document.getElementById('host-ips-input').value = (ips || []).join(', ');
+    document.getElementById('hosts-modal').style.display = 'block';
+}
+
+function closeHostModal() {
+    document.getElementById('hosts-modal').style.display = 'none';
+    currentEditingHostDomain = null;
+}
+
+function saveHostEntry() {
+    const domainRaw = document.getElementById('host-domain-input').value.trim();
+    const ipsRaw = document.getElementById('host-ips-input').value.trim();
+    const domain = normalizeHostKey(domainRaw);
+    const ips = [...new Set(ipsRaw.split(/[\s,]+/).map(s => s.trim()).filter(Boolean))];
+
+    if (!domain || !ips.length || ips.some(ip => !isIpAddr(ip))) {
+        showToast(t('toast_host_needs_fields'), 'error');
+        return;
+    }
+
+    // Replace (or add) this domain's entry and re-sort — plain array work
+    // in JS; the shell is only used to write the resulting text out.
+    hostsEntries = hostsEntries.filter(e => e.domain !== domain);
+    hostsEntries.push({ domain, ips });
+    hostsEntries.sort((a, b) => a.domain.localeCompare(b.domain));
+
+    persistHostsEntries(() => {
+        closeHostModal();
+        loadHostsDomainList();
+        applyActiveConfig();
+        showToast(t('toast_host_saved'), 'success');
+    });
+}
+
+async function deleteHostEntry(domain) {
+    const ok = await showConfirm(t('confirm_delete_host', { domain }));
+    if (!ok) return;
+    hostsEntries = hostsEntries.filter(e => e.domain !== domain);
+    persistHostsEntries(() => {
+        loadHostsDomainList();
+        applyActiveConfig();
+        showToast(t('toast_host_deleted'), 'success');
+    });
 }

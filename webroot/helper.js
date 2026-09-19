@@ -22,6 +22,230 @@ const DEFAULT_DNS_HOSTS = {
     "common.dot.dns.yandex.net": ["77.88.8.8", "77.88.8.1", "2a02:6b8::feed:0ff", "2a02:6b8:0:1::feed:0ff"]
 };
 
+// ===== Custom DNS hosts =====
+// Two input formats are accepted:
+//   1. JSON object:  { "example.com": ["1.2.3.4"], "domain:foo.cn": "foo.com" }
+//   2. /etc/hosts-style text:  1.2.3.4 example.com www.example.com
+//      (or "key value..." to create a domain alias, e.g.
+//      "domain:googleapis.cn googleapis.com")
+// An empty/null value, or a line prefixed with "!" or "-" in text format,
+// means DELETE that key from DEFAULT_DNS_HOSTS — the only way to drop a
+// built-in default without editing helper.js.
+const HOSTS_KEY_PREFIX_RE = /^(domain|full|keyword|regexp|geosite|ext):/i;
+const IPV4_RE = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+
+function isIpv4Addr(s) { return IPV4_RE.test(s); }
+function isIpv6Addr(s) {
+    // Loose but good enough to distinguish an IP from a hostname — Xray
+    // itself will reject a genuinely malformed address.
+    return s.includes(":") && /^[0-9a-f:]+(\.[0-9.]+)?(%[\w.-]+)?$/i.test(s);
+}
+function isIpAddr(s) { return isIpv4Addr(s) || isIpv6Addr(s); }
+
+function normalizeHostKey(key) {
+    const k = String(key || "").trim();
+    if (!k) return "";
+    const m = k.match(HOSTS_KEY_PREFIX_RE);
+    if (!m) return k.toLowerCase().replace(/\.$/, "");
+    const prefix = m[0].toLowerCase();
+    const rest = k.slice(m[0].length).trim();
+    // regexp: keep case as-is — the pattern itself may be case-sensitive.
+    return prefix === "regexp:" ? prefix + rest : prefix + rest.toLowerCase().replace(/\.$/, "");
+}
+
+// Returns: array of IPs | domain-alias string | null (= delete this key).
+// Xray accepts either a string (an IP or a domain alias) or an array of IPs
+// for a hosts value — a mixed/domain array is not valid config, so a domain
+// found in the list always collapses to a single string.
+function normalizeHostValue(value) {
+    if (value === null || value === undefined) return null;
+    const list = (Array.isArray(value) ? value : String(value).split(/[\s,]+/))
+        .map(x => String(x).trim())
+        .filter(Boolean);
+    if (!list.length) return null;
+
+    const ips = [];
+    const domains = [];
+    for (const item of list) (isIpAddr(item) ? ips : domains).push(item);
+
+    if (ips.length) return [...new Set(ips)];
+    return domains[0];
+}
+
+// input: object | JSON string | /etc/hosts-style text.
+// Returns { hosts, errors } — errors are informational only and never block
+// config generation: a broken line is skipped, the rest is still applied.
+function parseCustomHosts(input) {
+    const hosts = {};
+    const errors = [];
+    if (!input) return { hosts, errors };
+
+    let raw = input;
+    if (typeof raw === "string") {
+        const trimmed = raw.trim();
+        if (!trimmed) return { hosts, errors };
+        if (trimmed.startsWith("{")) {
+            try {
+                raw = JSON.parse(trimmed);
+            } catch (e) {
+                return { hosts, errors: ["JSON: " + e.message] };
+            }
+        }
+    }
+
+    if (typeof raw === "object") {
+        for (const [k, v] of Object.entries(raw)) {
+            const key = normalizeHostKey(k);
+            if (!key) continue;
+            hosts[key] = normalizeHostValue(v);
+        }
+        return { hosts, errors };
+    }
+
+    // --- Text format ---
+    String(raw).split(/\r?\n/).forEach((line, i) => {
+        const text = line.replace(/(^|\s)#.*$/, "").trim();
+        if (!text) return;
+
+        // Delete a default: "!one.one.one.one" or "-doh.pub"
+        if (/^[!-]/.test(text)) {
+            const key = normalizeHostKey(text.slice(1));
+            if (key) hosts[key] = null;
+            return;
+        }
+
+        const parts = text.split(/[\s,]+/).filter(Boolean);
+        if (parts.length < 2) {
+            errors.push(`L${i + 1}: "${text}"`);
+            return;
+        }
+
+        if (isIpAddr(parts[0])) {
+            // /etc/hosts order: IP first, so invert into hostname -> [IP...]
+            const ip = parts[0];
+            for (const name of parts.slice(1)) {
+                const key = normalizeHostKey(name);
+                if (!key) continue;
+                const prev = Array.isArray(hosts[key]) ? hosts[key] : [];
+                hosts[key] = [...new Set([...prev, ip])];
+            }
+        } else {
+            const key = normalizeHostKey(parts[0]);
+            if (!key) { errors.push(`L${i + 1}: "${text}"`); return; }
+            hosts[key] = normalizeHostValue(parts.slice(1));
+        }
+    });
+
+    return { hosts, errors };
+}
+
+// Custom entries override the defaults key-by-key; any key not mentioned is
+// left untouched, so googleapis.cn and every built-in DoH resolver survive
+// unless the user deliberately removes one with "!key".
+function mergeDnsHosts(base, custom) {
+    const out = { ...(base || {}) };
+    for (const [k, v] of Object.entries(custom || {})) {
+        if (v === null) delete out[k];
+        else out[k] = v;
+    }
+    return out;
+}
+
+// Single entry point used by convert_uri_to_xray_json(). Wrapped in
+// try/catch so a malformed hosts file can never break config generation.
+// Source moved from settings.customHosts (settings.base64) to the Custom
+// Hosts tab's own file (HOSTS_FILE, real /etc/hosts syntax) — main.js
+// keeps the small in-memory `hostsFileText` cache in sync with disk on
+// every write, so generation here can stay synchronous.
+function buildDnsHosts(settings) {
+    try {
+        const hosts = (typeof hostsFileText !== 'undefined' && hostsFileText)
+            ? parseStandardHostsFile(hostsFileText)
+            : parseCustomHosts(settings && settings.customHosts).hosts; // pre-migration fallback
+        return mergeDnsHosts(DEFAULT_DNS_HOSTS, hosts);
+    } catch (e) {
+        return { ...DEFAULT_DNS_HOSTS };
+    }
+}
+
+// ===== Custom Hosts tab helpers =====
+// HOSTS_FILE is a genuine /etc/hosts file: "IP hostname [hostname2 ...]
+// [# comment]", one mapping per line. A hostname that needs several IPs
+// gets several lines (exactly how real hosts files, and DNS A records,
+// already work) rather than one comma-packed line — so the file stays
+// something a person could open and recognize outside this app too.
+// There is no domain-to-domain aliasing here (unlike the old
+// settings.customHosts format): that was a Xray-only extension with no
+// equivalent in real hosts syntax, so the tab that edits a real hosts file
+// doesn't offer it.
+
+// Parses a whole hosts-file text into { hostname: [ip, ip, ...] } for
+// dns.hosts generation. Comment-only and blank lines are skipped; a
+// trailing "# ..." on a data line is stripped first. A line whose first
+// token isn't a real IP is ignored rather than erroring, so a hand-edited
+// file with typos never breaks config generation — it just drops that line.
+function parseStandardHostsFile(text) {
+    const hosts = {};
+    String(text || '').split(/\r?\n/).forEach(rawLine => {
+        const line = rawLine.replace(/#.*/, '').trim();
+        if (!line) return;
+        const parts = line.split(/\s+/).filter(Boolean);
+        if (parts.length < 2) return;
+        const ip = parts[0];
+        if (!isIpAddr(ip)) return;
+        for (const name of parts.slice(1)) {
+            const key = normalizeHostKey(name);
+            if (!key) continue;
+            const prev = Array.isArray(hosts[key]) ? hosts[key] : [];
+            hosts[key] = [...new Set([...prev, ip])];
+        }
+    });
+    return hosts;
+}
+
+// Parses one data line (never a comment/header line) for the list UI.
+// Returns null if the line isn't a valid "IP host..." mapping.
+function parseStandardHostsDataLine(line) {
+    const clean = String(line || '').replace(/#.*/, '').trim();
+    if (!clean) return null;
+    const parts = clean.split(/\s+/).filter(Boolean);
+    if (parts.length < 2) return null;
+    const ip = parts[0];
+    if (!isIpAddr(ip)) return null;
+    const hostnames = parts.slice(1).map(normalizeHostKey).filter(Boolean);
+    if (!hostnames.length) return null;
+    return { ip, hostnames };
+}
+
+// Parses a whole hosts-file text into an array of { domain, ips: [...] }
+// entries, sorted by domain. Lines for the same hostname — whether spread
+// across several lines or repeated within one multi-hostname line — are
+// merged into a single entry. Pure JS: no awk/sed/grep/sort involved, so
+// there's exactly one place that defines how a line is read.
+function parseHostsEntries(text) {
+    const map = new Map(); // domain -> Set(ip)
+    String(text || '').split(/\r?\n/).forEach(rawLine => {
+        const parsed = parseStandardHostsDataLine(rawLine);
+        if (!parsed) return;
+        parsed.hostnames.forEach(domain => {
+            if (!map.has(domain)) map.set(domain, new Set());
+            map.get(domain).add(parsed.ip);
+        });
+    });
+    return Array.from(map.entries())
+        .map(([domain, ipSet]) => ({ domain, ips: Array.from(ipSet) }))
+        .sort((a, b) => a.domain.localeCompare(b.domain));
+}
+
+// Serializes entries back into the full file text, under the standard
+// header — one "ip<TAB>domain" line per IP, exactly the shape
+// parseHostsEntries() reads back.
+function serializeHostsFile(entries) {
+    const lines = [];
+    (entries || []).forEach(e => (e.ips || []).forEach(ip => lines.push(`${ip}\t${e.domain}`)));
+    return HOSTS_HEADER_TEXT + '\n' + (lines.length ? lines.join('\n') + '\n' : '');
+}
+
 const LEGACY_DNS = [
     "1.1.1.1",       // Cloudflare DNS (Public)
     "8.8.8.8",       // Google DNS (Public)
@@ -1004,7 +1228,7 @@ function convert_uri_to_xray_json(uri, optional_settings) {
             loglevel: settings.loglevel || "none" 
         }, 
         dns: {
-            hosts: DEFAULT_DNS_HOSTS,
+            hosts: buildDnsHosts(settings),
             servers: dnsServers,
             queryStrategy: settings.preferIpv6 ? "UseIPv6" : "UseIPv4",
             ...(useFakeIp ? { fakedns: [{ ipPool: "198.18.0.0/15", poolSize: 65535 }] } : {})

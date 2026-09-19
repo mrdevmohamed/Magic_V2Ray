@@ -27,6 +27,7 @@
             <button class="tab-btn active" data-tab="tab-dashboard" onclick="switchTab('tab-dashboard', event)" data-i18n="tab_dashboard">Dashboard</button>
             <button class="tab-btn" data-tab="tab-settings" onclick="switchTab('tab-settings', event)" data-i18n="tab_settings">Traffic Settings</button>
             <button class="tab-btn" data-tab="tab-routing" onclick="switchTab('tab-routing', event)" data-i18n="tab_routing">Routing Settings</button>
+            <button class="tab-btn" data-tab="tab-hosts" onclick="switchTab('tab-hosts', event)" data-i18n="tab_hosts">Custom Hosts</button>
             <button class="tab-btn" data-tab="tab-log" onclick="switchTab('tab-log', event)" data-i18n="tab_log">Xray Log</button>
             <button class="tab-btn" data-tab="tab-latency" onclick="switchTab('tab-latency', event)" data-i18n="tab_latency">Network Latency</button>
         </div>
@@ -243,6 +244,14 @@
                         </div>
 
                     </div>
+
+                    <div class="setting-item-row" id="dns-row-custom-hosts">
+                        <label>
+                            <span data-i18n="lbl_custom_hosts">Custom Hosts</span>
+                            <small data-i18n="desc_custom_hosts_moved">Merged into dns.hosts on top of the built-in defaults. Manage entries in the Hosts tab.</small>
+                        </label>
+                        <button type="button" class="btn-goto-hosts-tab" onclick="switchTab('tab-hosts')" data-i18n="btn_goto_hosts_tab">Open Hosts tab</button>
+                    </div>
                 </div>
 
                 <button class="btn btn-primary btn-save-settings" onclick="saveAdvancedSettingsForm()" data-i18n="btn_save_settings">Save & Apply Configurations</button>
@@ -268,6 +277,27 @@
                 <div id="routing-rules-container"></div>
                 <div id="routing-empty-state" class="routing-empty-state" style="display:none;">
                     <span data-i18n="routing_empty">No custom routing rules yet.<br>Tap + to add a domain or IP rule.</span>
+                </div>
+            </section>
+        </div>
+
+        <!-- ===== Custom Hosts Tab ===== -->
+        <div id="tab-hosts" class="tab-content">
+            <section class="hosts-panel">
+                <div class="hosts-panel-header">
+                    <h3 data-i18n="hosts_title">Custom Hosts</h3>
+                    <button class="btn-add-node" onclick="openAddHostModal()" title="Add host">+</button>
+                </div>
+                <p class="hosts-panel-desc" data-i18n="hosts_panel_desc">Merged into dns.hosts on top of the built-in defaults. One domain per entry; a domain can have several IPs.</p>
+
+                <div class="hosts-search-bar">
+                    <input type="text" id="hosts-search-input" oninput="onHostsSearchInput()"
+                           data-i18n-placeholder="ph_hosts_search" placeholder="Search domain or IP...">
+                </div>
+
+                <div id="hosts-list-container" class="hosts-list-container" onscroll="onHostsListScroll()"></div>
+                <div id="hosts-empty-state" class="hosts-empty-state" style="display:none;">
+                    <span data-i18n="hosts_empty">No custom hosts yet.<br>Tap + to add a domain.</span>
                 </div>
             </section>
         </div>
@@ -922,6 +952,27 @@
                         <option value="direct" data-i18n="opt_outbound_direct">direct</option>
                         <option value="block" data-i18n="opt_outbound_block">block</option>
                     </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Custom Host Modal -->
+    <div id="hosts-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-window">
+            <header class="modal-header">
+                <button class="modal-icon-btn" onclick="closeHostModal()">←</button>
+                <h2 id="hosts-modal-title" data-i18n="modal_add_host_title">Add Host</h2>
+                <button class="modal-icon-btn check-btn" onclick="saveHostEntry()">✓</button>
+            </header>
+            <div class="modal-body">
+                <div class="edit-item-field">
+                    <label data-i18n="lbl_domain">domain</label>
+                    <input type="text" id="host-domain-input" data-i18n-placeholder="ph_host_domain" placeholder="example.com or domain:googleapis.cn">
+                </div>
+                <div class="edit-item-field">
+                    <label data-i18n="lbl_host_ips">IP(s)</label>
+                    <input type="text" id="host-ips-input" data-i18n-placeholder="ph_host_ips" placeholder="1.2.3.4, 1.2.3.5">
                 </div>
             </div>
         </div>

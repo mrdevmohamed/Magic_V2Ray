@@ -5,6 +5,47 @@ const SETTINGS_FILE = `${DATADIR}/settings.base64`;
 const ACTIVE_FILE = `${DATADIR}/active_config.txt`;
 const CONFIG_JSON = `${DATADIR}/config.v2.json`;
 const IP_HUNT_FILE = `${DATADIR}/ip_hunt.list`;
+// Custom Hosts tab — a genuine /etc/hosts-syntax file, not an app-invented
+// format: "IP  hostname [hostname2 ...]  [# comment]", one mapping per
+// line, so it looks and edits like a real hosts file (and stays usable if
+// someone opens it outside the app). File starts with HOSTS_HEADER_TEXT
+// (the classic Windows sample header/comment block); everything the app
+// itself writes lives after that.
+//
+// The whole file is read once (a plain `cat`) and parsed/serialized
+// entirely in JavaScript (see parseHostsEntries/serializeHostsFile in
+// helper.js) — no awk/sed/grep/sort on the shell side. Writing is a single
+// writeFileB64() with the freshly-serialized text. Doing the text work in
+// JS instead of chained shell utilities avoids the whole class of
+// quoting/field-separator bugs those brought, and costs nothing extra:
+// what used to freeze the WebView was rendering a huge blob of text into
+// one DOM textarea, not holding a parsed array in memory.
+const HOSTS_FILE = `${DATADIR}/hosts`;
+const HOSTS_HEADER_TEXT = `# Copyright (c) 1993-2009 Microsoft Corp.
+#
+# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.
+#
+# This file contains the mappings of IP addresses to host names. Each
+# entry should be kept on an individual line. The IP address should
+# be placed in the first column followed by the corresponding host name.
+# The IP address and the host name should be separated by at least one
+# space.
+#
+# Additionally, comments (such as these) may be inserted on individual
+# lines or following the machine name denoted by a '#' symbol.
+#
+# For example:
+#
+#      102.54.94.97     rhino.acme.com          # source server
+#       38.25.63.10     x.acme.com              # x client host
+
+# localhost name resolution is handled within DNS itself.
+#\t127.0.0.1       localhost
+#\t::1             localhost
+
+# ==== Managed by Magic V2ray below this line — edit from the Custom Hosts tab ====`;
+
+
 // Comma-separated interface names whose outbound traffic skips Xray
 // entirely — stored as a plain file rather than inside settings.base64,
 // same pattern as IP_HUNT_FILE: existence of the file means the feature is
@@ -52,6 +93,11 @@ let advSettings = {
     vpnDns: "1.1.1.1",
     foreignDns: "1.1.1.1",
     domesticDns: "223.5.5.5",
+    // Custom DNS hosts. Stored verbatim as the user typed it (JSON object or
+    // /etc/hosts-style text) so the textarea round-trips exactly; parsing
+    // and merging with DEFAULT_DNS_HOSTS happens at config-generation time
+    // in buildDnsHosts() (helper.js).
+    customHosts: "",
     routingRules: [
         {
             "remarks": "阻断udp443",
@@ -253,3 +299,25 @@ let _latencySamples = [];
 
 // Mobile IP Hunter
 let _ipHunterSaveTimer = null;
+
+// Custom Hosts tab.
+// `hostsEntries` is the whole file, parsed once into
+// [{ domain, ips: [...] }, ...] (see parseHostsEntries in helper.js) and
+// kept in memory — re-derived from `hostsFileText` on load and rewritten
+// in place on every add/edit/delete, never re-read from disk mid-session.
+// `_hostsFilteredEntries` is that array filtered by the current search
+// query; the visible list pages through it entirely in JS (instant, no
+// shell round-trip), only ever appending the current page's ~40 rows to
+// the DOM as the user scrolls.
+const HOSTS_PAGE_SIZE = 40;
+// Raw text cache, used only by buildDnsHosts() (helper.js) to generate
+// dns.hosts synchronously at config-build time.
+let hostsFileText = "";
+let hostsEntries = [];
+let _hostsFilteredEntries = [];
+let _hostsSearchQuery = "";
+let _hostsSearchTimer = null;
+let _hostsLoadedCount = 0;
+let _hostsListEndReached = false;
+// null = "add" mode; otherwise the normalized domain currently being edited.
+let currentEditingHostDomain = null;

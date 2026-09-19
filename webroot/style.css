@@ -774,6 +774,159 @@ textarea::placeholder { color: var(--md-outline); }
     color: var(--md-error);
 }
 
+/* ===== Custom Hosts Panel ===== */
+.hosts-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.hosts-panel-header h3 {
+    font-family: var(--md-font-display);
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--md-on-surface);
+    letter-spacing: -.2px;
+}
+
+.hosts-panel-desc {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--md-on-surface-variant);
+    margin: 0 0 14px;
+}
+
+.hosts-search-bar {
+    margin-bottom: 12px;
+}
+
+.hosts-search-bar input {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--md-surface-1);
+    border: 1px solid var(--md-outline-variant);
+    border-radius: var(--md-shape-full);
+    padding: 10px 16px;
+    color: var(--md-on-surface);
+    font-size: 13px;
+}
+.hosts-search-bar input:focus {
+    outline: none;
+    border-color: var(--md-primary);
+}
+
+/* Rows are appended incrementally as the user scrolls (see loadHostsPage /
+   onHostsListScroll in main.js) rather than all at once, so a hosts file
+   with tens of thousands of domains never has to render — or exist in the
+   DOM — in one shot. */
+.hosts-list-container {
+    max-height: 60vh;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+}
+
+.hosts-empty-state {
+    text-align: center;
+    padding: 40px 16px;
+    color: var(--md-on-surface-variant);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.hosts-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    background: var(--md-surface-1);
+    border: 1px solid var(--md-outline-variant);
+    border-radius: var(--md-shape-lg);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+}
+
+.hosts-row-info {
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.hosts-row-domain {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--md-on-surface);
+    font-family: var(--md-font-mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hosts-row-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.hosts-ip-chip {
+    display: inline-block;
+    font-size: 11px;
+    font-family: var(--md-font-mono);
+    padding: 2px 8px;
+    border-radius: var(--md-shape-full);
+    background: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+}
+.hosts-alias-chip {
+    background: var(--md-success-container);
+    color: var(--md-on-success-container);
+}
+
+.hosts-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.hosts-row-icon-btn {
+    background: none;
+    border: none;
+    color: var(--md-on-surface-variant);
+    padding: 6px;
+    cursor: pointer;
+    border-radius: var(--md-shape-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .2s, color .2s;
+}
+.hosts-row-icon-btn:hover {
+    background: rgba(208, 188, 255, 0.1);
+    color: var(--md-on-surface);
+}
+.hosts-row-icon-btn.btn-delete-item:hover {
+    background: rgba(242,184,181,0.1);
+    color: var(--md-error);
+}
+
+.btn-goto-hosts-tab {
+    background: var(--md-surface-1);
+    border: 1px solid var(--md-outline-variant);
+    color: var(--md-on-surface);
+    border-radius: var(--md-shape-full);
+    padding: 8px 16px;
+    font-size: 12.5px;
+    cursor: pointer;
+    align-self: flex-start;
+}
+.btn-goto-hosts-tab:hover {
+    border-color: var(--md-primary);
+    color: var(--md-primary);
+}
+
 /* ===== Settings Panel ===== */
 .settings-form-panel h3 {
     font-family: var(--md-font-display);
@@ -813,6 +966,29 @@ textarea::placeholder { color: var(--md-outline); }
     gap: 16px;
 }
 .setting-item-row:last-child { margin-bottom: 0; }
+
+/* Label above field instead of side-by-side — used by rows whose field
+   needs the full width (e.g. the Custom Hosts textarea). */
+.setting-item-row.setting-item-column {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+.setting-item-row.setting-item-column label { padding-right: 0; }
+.setting-item-row.setting-item-column textarea {
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 96px;
+    background: var(--md-surface-3);
+    border: 1px solid var(--md-outline-variant);
+    border-radius: 8px;
+    color: var(--md-on-surface);
+    font-family: ui-monospace, "Roboto Mono", monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 10px 12px;
+}
 
 .setting-item-row label {
     font-size: 14px;
