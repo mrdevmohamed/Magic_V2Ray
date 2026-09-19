@@ -9,9 +9,12 @@
 <body>
     <div class="container">
         <header style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
+            <div style="min-width: 0; flex: 1;">
                 <h1>Magic V2Ray</h1>
-                <div class="status-badge" id="service-status">Status: Checking...</div>
+                <div class="status-badge" id="service-status" role="button" tabindex="0"
+                     onclick="showCurrentIp()"
+                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showCurrentIp();}">Status: Checking...</div>
+                <div class="status-ip" id="status-ip" hidden></div>
             </div>
             <div class="lang-switcher">
                 <select id="lang-select" onchange="changeLanguage(this.value)" style="padding: 4px 8px; border-radius: 4px; background: var(--bg-panel, #222); color: var(--text-main, #fff); border: 1px solid #444;">

@@ -164,6 +164,39 @@ header h1 {
     background: var(--md-error);
 }
 
+/* Node name + tap-to-check-IP on the status chip */
+.status-badge {
+    max-width: 100%;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.status-badge:active { filter: brightness(1.25); }
+.status-badge .status-text { flex-shrink: 0; }
+.status-badge .status-node {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+    opacity: .85;
+}
+.status-badge .status-node::before {
+    content: '\2022';
+    margin-right: 6px;
+    opacity: .6;
+}
+.status-ip {
+    margin-top: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: var(--md-on-surface);
+    word-break: break-all;
+}
+.status-ip[hidden] { display: none; }
+.status-ip.error { color: var(--md-error); }
+
 @keyframes pulse-dot {
     0%, 100% { box-shadow: 0 0 0 3px rgba(109, 213, 140, 0.2); }
     50%       { box-shadow: 0 0 0 6px rgba(109, 213, 140, 0.08); }

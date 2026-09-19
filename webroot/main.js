@@ -476,23 +476,108 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
  
+// Name of the node the service is (or will be) running with, for the status
+// chip. Mirrors the resolution order used when the config is generated:
+// professional mode > built-in direct node > selected profile node.
+function getActiveNodeLabel() {
+    if (advSettings.proMode) return t('status_node_pro');
+    if (!activeConfig) return t('builtin_direct_name');
+    const sep = activeConfig.indexOf(':');
+    const category = activeConfig.slice(0, sep);
+    const id = activeConfig.slice(sep + 1);
+    const node = profiles[category]?.nodes?.find(n => n.id === id);
+    return node ? (node.name || node.address || id) : '';
+}
+
+// Rebuilt with textContent (never innerHTML): node names come from
+// subscriptions and are untrusted.
+function _setStatusBadge(text, nodeName) {
+    const badge = document.getElementById('service-status');
+    if (!badge) return;
+    badge.textContent = '';
+    const textEl = document.createElement('span');
+    textEl.className = 'status-text';
+    textEl.textContent = text;
+    badge.appendChild(textEl);
+    if (nodeName) {
+        const nodeEl = document.createElement('span');
+        nodeEl.className = 'status-node';
+        nodeEl.textContent = nodeName;
+        badge.appendChild(nodeEl);
+        badge.title = nodeName;
+    } else {
+        badge.removeAttribute('title');
+    }
+}
+
+function _clearStatusIp() {
+    const el = document.getElementById('status-ip');
+    if (!el) return;
+    el.hidden = true;
+    el.textContent = '';
+    el.classList.remove('error');
+}
+
 function updateStatusDisplay() {
     execShell(`sh ${MODDIR}/proxy_control.sh status`, (status, stderr, errno) => {
         const badge = document.getElementById('service-status');
         const s = status || 'stopped';
-        badge.innerText = t('status_prefix') + s.toUpperCase();
+        _setStatusBadge(
+            t('status_prefix') + s.toUpperCase(),
+            errno === 0 ? getActiveNodeLabel() : ''
+        );
         badge.className = `status-badge ${errno === 0 ? 'active' : 'inactive'}`;
+        // A previously fetched IP may no longer be valid after a
+        // start/stop/node switch.
+        _clearStatusIp();
         if (errno == 2) {
             showToast(t('toast_xray_core_crash'), "error");
         }
     });
 }
+
+// Tap on the status chip: ask icanhazip.com which IP we currently exit from,
+// through the running service's socks-test-in inbound. Tapping again
+// re-checks (useful right after switching node).
+let _statusIpBusy = false;
+async function showCurrentIp() {
+    if (_statusIpBusy) return;
+    const el = document.getElementById('status-ip');
+    const badge = document.getElementById('service-status');
+    if (!el || !badge) return;
+
+    if (!badge.classList.contains('active')) {
+        showToast(t('status_ip_not_running'), 'error');
+        return;
+    }
+
+    _statusIpBusy = true;
+    el.hidden = false;
+    el.classList.remove('error');
+    el.textContent = t('status_ip_checking');
+    try {
+        const out = await execShellAsync(
+            `${MODDIR}/bin/curl --socks5-hostname 127.17.1.3:808 -s ` +
+            `--max-time 6 https://icanhazip.com 2>/dev/null`
+        );
+        const ip = out.trim();
+        if (/^[0-9a-fA-F:.]{3,45}$/.test(ip)) {
+            el.textContent = t('status_ip_label') + ip;
+        } else {
+            el.classList.add('error');
+            el.textContent = t('status_ip_failed');
+        }
+    } finally {
+        _statusIpBusy = false;
+    }
+}
  
 function _markStatusPending() {
     const badge = document.getElementById('service-status');
     if (!badge) return;
-    badge.innerText = t('status_loading');
+    _setStatusBadge(t('status_loading'), '');
     badge.className = 'status-badge active';
+    _clearStatusIp();
     setTimeout(updateStatusDisplay, 1200);
 }
 
