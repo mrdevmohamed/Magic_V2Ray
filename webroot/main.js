@@ -556,6 +556,7 @@ async function showCurrentIp() {
         showToast(t('status_ip_not_running'), 'error');
         return;
     }
+    showLoading(t('status_ip_checking'));
 
     _statusIpBusy = true;
     el.hidden = false;
@@ -575,6 +576,7 @@ async function showCurrentIp() {
         }
     } finally {
         _statusIpBusy = false;
+        hideLoading();
     }
 }
  
