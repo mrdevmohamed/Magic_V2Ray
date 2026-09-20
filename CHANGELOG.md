@@ -1,3 +1,7 @@
+# Release Notes — v1.17.1
+
+Add local DoH DNS entries for Vietnam carriers
+
 # Release Notes — v1.17
 
 Xray Module v1.17 introduces flexible control over DNS query strategies by upgrading from the legacy IPv6 preference toggle to a full query strategy configuration. Users can now explicitly choose between UseIP, UseIPv4, UseIPv6, and UseSystem options to fit their specific network environments, while existing configurations smoothly migrate without breaking behavior.
