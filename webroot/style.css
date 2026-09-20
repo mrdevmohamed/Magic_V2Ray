@@ -962,6 +962,32 @@ textarea::placeholder { color: var(--md-outline); }
     margin-bottom: 6px;
 }
 
+.hosts-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-hosts-reload {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 42px;
+    background: var(--md-surface-1);
+    color: var(--md-on-surface-variant);
+    border: 1px solid var(--md-outline-variant);
+    border-radius: var(--md-shape-full);
+    cursor: pointer;
+    transition: background .2s, color .2s, transform .2s var(--md-motion-standard);
+}
+.btn-hosts-reload:hover {
+    background: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+}
+.btn-hosts-reload:active { transform: scale(0.96); }
+.btn-hosts-reload:disabled { opacity: .5; pointer-events: none; }
+
 .hosts-panel-header h3 {
     font-family: var(--md-font-display);
     font-size: 20px;

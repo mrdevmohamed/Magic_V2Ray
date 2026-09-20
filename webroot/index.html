@@ -327,7 +327,12 @@
             <section class="hosts-panel">
                 <div class="hosts-panel-header">
                     <h3 data-i18n="hosts_title">Custom Hosts</h3>
-                    <button class="btn-add-node" onclick="openAddHostModal()" title="Add host">+</button>
+                    <div class="hosts-header-actions">
+                        <button class="btn-hosts-reload" id="btn-hosts-reload" onclick="reloadHostsFile()" data-i18n-title="btn_reload_hosts" title="Reload hosts file">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                        </button>
+                        <button class="btn-add-node" onclick="openAddHostModal()" title="Add host">+</button>
+                    </div>
                 </div>
                 <p class="hosts-panel-desc" data-i18n="hosts_panel_desc">Merged into dns.hosts on top of the built-in defaults. One domain per entry; a domain can have several IPs.</p>
 

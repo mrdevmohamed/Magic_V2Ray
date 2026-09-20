@@ -17,6 +17,13 @@ function applyI18n() {
             el.setAttribute('aria-label', i18n[currentLang][key]);
         }
     });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        if (i18n[currentLang][key]) {
+            el.setAttribute('title', i18n[currentLang][key]);
+            el.setAttribute('aria-label', i18n[currentLang][key]);
+        }
+    });
     const select = document.getElementById('lang-select');
     if (select) select.value = currentLang;
 }
@@ -4325,6 +4332,40 @@ function persistHostsEntries(callback) {
     const text = serializeHostsFile(hostsEntries);
     hostsFileText = text;
     writeFileB64(HOSTS_FILE, text, callback);
+}
+
+// Re-reads HOSTS_FILE from disk and pushes it into config.json — for when
+// the file was replaced or edited outside the app (file explorer, adb, ...).
+// Everything else in this tab works off the in-memory copy, so without this
+// the app would keep showing (and later overwrite with) the stale entries.
+function reloadHostsFile() {
+    const btn = document.getElementById('btn-hosts-reload');
+    if (btn) btn.disabled = true;
+    const done = () => { if (btn) btn.disabled = false; };
+
+    execShell(`cat ${shQuote(HOSTS_FILE)} 2>/dev/null || echo ''`, (raw) => {
+        // Same parse/normalize path as at startup: real "ip host..." lines
+        // are picked up, and the file is rewritten under the standard header.
+        initHostsFileIfNeeded(raw || '', (finalText) => {
+            hostsFileText = finalText;
+            loadHostsDomainList();
+
+            const count = hostsEntries.length;
+            // Professional mode uses config.json verbatim, so dns.hosts is
+            // not generated and there is nothing to regenerate.
+            if (advSettings.proMode) {
+                done();
+                showToast(t('toast_hosts_reloaded_pro', { count }), 'success');
+                return;
+            }
+            applyActiveConfig({
+                onDone: (ok) => {
+                    done();
+                    if (ok) showToast(t('toast_hosts_reloaded', { count }), 'success');
+                }
+            });
+        });
+    });
 }
 
 function resetHostsList() {
