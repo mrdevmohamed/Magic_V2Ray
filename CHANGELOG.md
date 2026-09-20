@@ -1,10 +1,12 @@
-# Release Notes — v1.16
+# Release Notes — v1.17
 
-Magic V2Ray v1.16 brings several key updates to improve navigation and core networking features. The application now includes a dedicated Network Settings tab where you can easily manage OS-level routing switches such as Interface Mode, IPv6 Toggle, Allow Tethering, and Bypass Network Interfaces. Saving changes in this tab automatically restarts the engine so that iptables and system routing rules apply immediately.
+Xray Module v1.17 introduces flexible control over DNS query strategies by upgrading from the legacy IPv6 preference toggle to a full query strategy configuration. Users can now explicitly choose between UseIP, UseIPv4, UseIPv6, and UseSystem options to fit their specific network environments, while existing configurations smoothly migrate without breaking behavior.
 
-In addition, a new About tab has been added to display the current version, description, author information, and open-source project credits, alongside useful resource links for support and updates. Navigation on mobile devices and smaller screens is now much easier thanks to a new compact dropdown menu that replaces the previous top horizontal bar. This menu also fully supports keyboard navigation using standard control keys.
+This release improves host management and user experience with a dedicated reload button for custom hosts. The web interface now allows quick reloading of host definitions modified outside the app without losing pending changes. Furthermore, an indicator has been added to provide instant visual feedback during public IP checks.
 
-Several system fixes and performance improvements have also been implemented in this release. The IPv6 routing logic was refined so that non-proxied traffic is no longer accidentally blocked.
+Routing rules management is now more intuitive with the addition of dedicated reordering controls. Users can adjust the priority of custom routing rules directly in the interface with automatic background persistence to keep configurations synchronized.
+
+Network flexibility has been expanded with a new setting to route LAN and private network traffic through Xray while keeping local loopback traffic isolated. Under the hood, background connectivity tests during interface initialization have been cleaned up for cleaner startup behavior.
 
 ---
 
