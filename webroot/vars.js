@@ -96,6 +96,15 @@ let advSettings = {
     mtu: 1350,
     pinnedPeerCertSha256: "",
     dnsViaProxy: true,
+    // Xray dns.* engine options (Traffic Settings > DNS Engine Options).
+    // Built into the config by buildDnsEngineOptions() in helper.js.
+    dnsDisableCache: false,
+    dnsServeStale: false,
+    dnsServeExpiredTTL: 0,
+    dnsDisableFallback: false,
+    dnsDisableFallbackIfMatch: false,
+    dnsParallelQuery: true, // speed up DNS (Xray's own default is false)
+    dnsUseSystemHosts: false,
     localDns: false,
     fakeDnsLocal: false,
     // Professional mode: when true, config.json is taken verbatim from

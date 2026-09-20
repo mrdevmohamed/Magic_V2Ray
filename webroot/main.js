@@ -2905,6 +2905,24 @@ function updateDnsGroupVisibility() {
     }
 }
 
+// Grey out DNS engine options that have no effect given the others:
+// serveStale needs the cache, its TTL needs serveStale, and
+// disableFallbackIfMatch is moot once fallback is fully disabled.
+function syncDnsEngineOptions() {
+    const on = id => { const e = document.getElementById(id); return !!(e && e.checked); };
+    const setDisabled = (rowId, inputId, disabled) => {
+        const row = document.getElementById(rowId);
+        const inp = document.getElementById(inputId);
+        if (row) row.classList.toggle('setting-row-disabled', disabled);
+        if (inp) inp.disabled = disabled;
+    };
+    const noCache = on('set-dns-disablecache');
+    const noStale = noCache || !on('set-dns-servestale');
+    setDisabled('row-dns-servestale', 'set-dns-servestale', noCache);
+    setDisabled('row-dns-servettl', 'set-dns-servettl', noStale);
+    setDisabled('row-dns-disablefallbackifmatch', 'set-dns-disablefallbackifmatch', on('set-dns-disablefallback'));
+}
+
 function syncQueryStrategyHint() {
     const select = document.getElementById('set-query-strategy');
     const hint = document.getElementById('query-strategy-hint');
@@ -2931,6 +2949,17 @@ function bindSettingsToFormView() {
     // even though the value was being persisted correctly.
     document.getElementById('set-dnsviaproxy').checked = advSettings.dnsViaProxy !== false;
     document.getElementById('set-pinned-cert').value = advSettings.pinnedPeerCertSha256 || "";
+
+    // DNS engine options
+    document.getElementById('set-dns-disablecache').checked = advSettings.dnsDisableCache === true;
+    document.getElementById('set-dns-servestale').checked = advSettings.dnsServeStale === true;
+    document.getElementById('set-dns-servettl').value = Math.max(0, parseInt(advSettings.dnsServeExpiredTTL, 10) || 0);
+    document.getElementById('set-dns-disablefallback').checked = advSettings.dnsDisableFallback === true;
+    document.getElementById('set-dns-disablefallbackifmatch').checked = advSettings.dnsDisableFallbackIfMatch === true;
+    // Default ON: settings saved by older versions have no value.
+    document.getElementById('set-dns-parallel').checked = advSettings.dnsParallelQuery !== false;
+    document.getElementById('set-dns-systemhosts').checked = advSettings.dnsUseSystemHosts === true;
+    syncDnsEngineOptions();
 
     // DNS group
     document.getElementById('set-localdns').checked = advSettings.localDns || false;
@@ -2974,6 +3003,15 @@ function saveAdvancedSettingsForm(isLangOnly = false) {    advSettings.loglevel 
     }
     advSettings.dnsViaProxy = document.getElementById('set-dnsviaproxy').checked;
     advSettings.pinnedPeerCertSha256 = document.getElementById('set-pinned-cert').value.trim();
+
+    // DNS engine options
+    advSettings.dnsDisableCache = document.getElementById('set-dns-disablecache').checked;
+    advSettings.dnsServeStale = document.getElementById('set-dns-servestale').checked;
+    advSettings.dnsServeExpiredTTL = Math.max(0, parseInt(document.getElementById('set-dns-servettl').value, 10) || 0);
+    advSettings.dnsDisableFallback = document.getElementById('set-dns-disablefallback').checked;
+    advSettings.dnsDisableFallbackIfMatch = document.getElementById('set-dns-disablefallbackifmatch').checked;
+    advSettings.dnsParallelQuery = document.getElementById('set-dns-parallel').checked;
+    advSettings.dnsUseSystemHosts = document.getElementById('set-dns-systemhosts').checked;
 
     // DNS group
     advSettings.localDns = document.getElementById('set-localdns').checked;

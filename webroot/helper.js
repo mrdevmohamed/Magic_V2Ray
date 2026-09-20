@@ -501,6 +501,30 @@ function resolveDnsQueryStrategy(settings) {
     return (settings && settings.preferIpv6) ? "UseIPv6" : "UseIPv4";
 }
 
+// Xray dns.* engine options. Only keys that differ from Xray's own defaults
+// are emitted (so older cores that don't know newer fields such as
+// serveStale / enableParallelQuery / useSystemHosts never see them), except
+// enableParallelQuery, whose default here is ON while Xray's is OFF.
+function buildDnsEngineOptions(settings) {
+    const s = settings || {};
+    const o = {};
+    const disableCache = s.dnsDisableCache === true;
+    const disableFallback = s.dnsDisableFallback === true;
+    if (disableCache) o.disableCache = true;
+    // serveStale is constrained by disableCache, so it is meaningless then.
+    if (!disableCache && s.dnsServeStale === true) {
+        o.serveStale = true;
+        const ttl = parseInt(s.dnsServeExpiredTTL, 10);
+        if (ttl > 0) o.serveExpiredTTL = ttl;
+    }
+    if (disableFallback) o.disableFallback = true;
+    // disableFallbackIfMatch is redundant once fallback is fully disabled.
+    if (!disableFallback && s.dnsDisableFallbackIfMatch === true) o.disableFallbackIfMatch = true;
+    if (s.dnsParallelQuery !== false) o.enableParallelQuery = true;
+    if (s.dnsUseSystemHosts === true) o.useSystemHosts = true;
+    return o;
+}
+
 function convert_uri_to_xray_json(uri, optional_settings) {
     const settings = optional_settings || {
         loglevel: "none",
@@ -516,6 +540,13 @@ function convert_uri_to_xray_json(uri, optional_settings) {
         mtu: 1350,
         pinnedPeerCertSha256: "",
         dnsViaProxy: true,
+        dnsDisableCache: false,
+        dnsServeStale: false,
+        dnsServeExpiredTTL: 0,
+        dnsDisableFallback: false,
+        dnsDisableFallbackIfMatch: false,
+        dnsParallelQuery: true,
+        dnsUseSystemHosts: false,
         localDns: false,
         fakeDnsLocal: false,
         domainStrategy: "auto",
@@ -1252,6 +1283,7 @@ function convert_uri_to_xray_json(uri, optional_settings) {
             hosts: buildDnsHosts(settings),
             servers: dnsServers,
             queryStrategy: resolveDnsQueryStrategy(settings),
+            ...buildDnsEngineOptions(settings),
             ...(useFakeIp ? { fakedns: [{ ipPool: "198.18.0.0/15", poolSize: 65535 }] } : {})
         },
         inbounds: [
