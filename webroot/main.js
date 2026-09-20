@@ -2896,6 +2896,15 @@ function updateDnsGroupVisibility() {
     }
 }
 
+function syncQueryStrategyHint() {
+    const select = document.getElementById('set-query-strategy');
+    const hint = document.getElementById('query-strategy-hint');
+    if (!select || !hint) return;
+    const key = DNS_QUERY_STRATEGY_HINT_KEYS[select.value] || DNS_QUERY_STRATEGY_HINT_KEYS.UseIPv4;
+    hint.setAttribute('data-i18n', key); // so a language switch re-translates it
+    hint.innerHTML = t(key);
+}
+
 function bindSettingsToFormView() {
     currentLang = advSettings.lang || "en";
     applyI18n();
@@ -2904,7 +2913,11 @@ function bindSettingsToFormView() {
     document.getElementById('set-sniffing').checked = advSettings.sniffing;
     document.getElementById('set-routeonly').checked = advSettings.routeOnly;
     document.getElementById('set-enableipv6').checked = advSettings.enableIPv6;
-    document.getElementById('set-preferipv6').checked = advSettings.preferIpv6;
+    // Migrate the legacy boolean `preferIpv6` into `queryStrategy` once.
+    advSettings.queryStrategy = resolveDnsQueryStrategy(advSettings);
+    delete advSettings.preferIpv6;
+    document.getElementById('set-query-strategy').value = advSettings.queryStrategy;
+    syncQueryStrategyHint();
     // `x || true` is always true — the checkbox could never render unchecked
     // even though the value was being persisted correctly.
     document.getElementById('set-dnsviaproxy').checked = advSettings.dnsViaProxy !== false;
@@ -2943,7 +2956,11 @@ function bindSettingsToFormView() {
 function saveAdvancedSettingsForm(isLangOnly = false) {    advSettings.loglevel = document.getElementById('set-loglevel').value;
     advSettings.sniffing = document.getElementById('set-sniffing').checked;
     advSettings.routeOnly = document.getElementById('set-routeonly').checked;
-    advSettings.preferIpv6 = document.getElementById('set-preferipv6').checked;
+    {
+        const qs = document.getElementById('set-query-strategy').value;
+        advSettings.queryStrategy = DNS_QUERY_STRATEGIES.includes(qs) ? qs : "UseIPv4";
+        delete advSettings.preferIpv6;
+    }
     advSettings.dnsViaProxy = document.getElementById('set-dnsviaproxy').checked;
     advSettings.pinnedPeerCertSha256 = document.getElementById('set-pinned-cert').value.trim();
 

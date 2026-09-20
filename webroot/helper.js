@@ -495,12 +495,20 @@ function _mergeFinalMask(streamSettings, userMask) {
     if (Object.keys(merged).length > 0) streamSettings.finalmask = merged;
 }
 
+// dns.queryStrategy. Honors the explicit value; settings saved by older
+// versions only have the boolean `preferIpv6`, so fall back to what that
+// flag used to produce (UseIPv6 / UseIPv4) and keep behavior unchanged.
+function resolveDnsQueryStrategy(settings) {
+    if (settings && DNS_QUERY_STRATEGIES.includes(settings.queryStrategy)) return settings.queryStrategy;
+    return (settings && settings.preferIpv6) ? "UseIPv6" : "UseIPv4";
+}
+
 function convert_uri_to_xray_json(uri, optional_settings) {
     const settings = optional_settings || {
         loglevel: "none",
         sniffing: true,
         routeOnly: false,
-        preferIpv6: false,
+        queryStrategy: "UseIPv4",
         mux: false,
         mux_connections: 8,
         fragment: false,
@@ -1245,7 +1253,7 @@ function convert_uri_to_xray_json(uri, optional_settings) {
         dns: {
             hosts: buildDnsHosts(settings),
             servers: dnsServers,
-            queryStrategy: settings.preferIpv6 ? "UseIPv6" : "UseIPv4",
+            queryStrategy: resolveDnsQueryStrategy(settings),
             ...(useFakeIp ? { fakedns: [{ ipPool: "198.18.0.0/15", poolSize: 65535 }] } : {})
         },
         inbounds: [

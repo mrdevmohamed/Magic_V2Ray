@@ -77,7 +77,10 @@ let advSettings = {
     // are the literal Xray strategies. Resolved in convert_uri_to_xray_json().
     domainStrategy: "auto",
     enableIPv6: false,
-    preferIpv6: false,
+    // Xray dns.queryStrategy: UseIP | UseIPv4 | UseIPv6 | UseSystem.
+    // Replaces the old boolean `preferIpv6` (true -> UseIPv6, false -> UseIPv4);
+    // see resolveDnsQueryStrategy() in helper.js for the migration.
+    queryStrategy: "UseIPv4",
     networkMode: 0,
     allowTether: true,
     mux: false,
@@ -275,6 +278,14 @@ const CUSTOM_CONFIG_TEMPLATE = `{
 // node, so nothing new is written to ACTIVE_FILE and service.sh keeps seeing
 // the file layout it already knows.
 const DIRECT_NODE_URI = "freedom://direct";
+
+const DNS_QUERY_STRATEGIES = ["UseIP", "UseIPv4", "UseIPv6", "UseSystem"];
+const DNS_QUERY_STRATEGY_HINT_KEYS = {
+    UseIP: 'hint_qs_useip',
+    UseIPv4: 'hint_qs_useipv4',
+    UseIPv6: 'hint_qs_useipv6',
+    UseSystem: 'hint_qs_usesystem'
+};
 
 let currentLang = 'en';
 let currentEditingCategory = null;
