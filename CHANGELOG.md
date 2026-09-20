@@ -1,3 +1,7 @@
+# Release Notes — v1.17.2
+
+Add configurable Xray DNS engine options: The Traffic Settings tab now has a "DNS engine options" section for tuning Xray's built-in DNS module. You can disable the DNS cache, serve stale (expired) cache entries with a configurable lifetime, disable fallback queries, disable fallback when a server's domain list already matched, use parallel queries, and append the device hosts file. Parallel query is enabled by default to speed up resolving, and all other options keep Xray's defaults.
+
 # Release Notes — v1.17.1
 
 Add local DoH DNS entries for Vietnam carriers
