@@ -299,6 +299,8 @@ let categoryExpandedState = {};
 
 // Routing Settings tab
 let currentEditingRuleIndex = null;
+// Debounce timer for saving after rules are reordered (moveRoutingRule).
+let _routingPersistTimer = null;
 
 // Logging
 let _logAutoRefreshTimer = null;

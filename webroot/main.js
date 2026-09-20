@@ -3108,6 +3108,27 @@ function renderRoutingRules() {
         const row = document.createElement('div');
         row.className = `routing-rule-row${rule.enabled === false ? ' rule-disabled' : ''}`;
 
+        // Rule order is match priority in Xray (first match wins), so the
+        // list can be reordered. Up/down buttons rather than drag & drop:
+        // HTML5 drag events do not fire on touch in the Android WebView.
+        const reorder = document.createElement('div');
+        reorder.className = 'routing-rule-reorder';
+        const upBtn = document.createElement('button');
+        upBtn.className = 'routing-rule-icon-btn';
+        upBtn.title = t('btn_move_up');
+        upBtn.disabled = index === 0;
+        upBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>';
+        upBtn.onclick = (e) => { e.stopPropagation(); moveRoutingRule(index, -1); };
+        reorder.appendChild(upBtn);
+        const downBtn = document.createElement('button');
+        downBtn.className = 'routing-rule-icon-btn';
+        downBtn.title = t('btn_move_down');
+        downBtn.disabled = index === rules.length - 1;
+        downBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+        downBtn.onclick = (e) => { e.stopPropagation(); moveRoutingRule(index, 1); };
+        reorder.appendChild(downBtn);
+        row.appendChild(reorder);
+
         const info = document.createElement('div');
         info.className = 'routing-rule-info';
         info.onclick = () => editRoutingRule(index);
@@ -3156,6 +3177,23 @@ function renderRoutingRules() {
         row.appendChild(actions);
         container.appendChild(row);
     });
+}
+
+// Swaps a rule with its neighbour. The list re-renders immediately, but the
+// save (which regenerates config.json and reloads xray) is debounced so a
+// run of clicks moving one rule several places costs a single reload.
+function moveRoutingRule(index, delta) {
+    const rules = advSettings.routingRules;
+    const target = index + delta;
+    if (!Array.isArray(rules) || !rules[index] || target < 0 || target >= rules.length) return;
+    [rules[index], rules[target]] = [rules[target], rules[index]];
+    renderRoutingRules();
+
+    const rows = document.querySelectorAll('#routing-rules-container .routing-rule-row');
+    if (rows[target]) rows[target].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+    clearTimeout(_routingPersistTimer);
+    _routingPersistTimer = setTimeout(persistRoutingRules, 800);
 }
 
 function openAddRoutingRuleModal() {
@@ -3288,6 +3326,8 @@ function onDomainStrategyChange(select) {
 // Persists advSettings (including routingRules) to disk and, if a proxy is
 // currently active, regenerates its Xray config and restarts if running.
 function persistRoutingRules() {
+    // Any pending debounced save from moveRoutingRule() is covered by this one.
+    clearTimeout(_routingPersistTimer);
     writeFileB64(SETTINGS_FILE, utoa(JSON.stringify(advSettings)), () => {
         applyActiveConfig();
     });

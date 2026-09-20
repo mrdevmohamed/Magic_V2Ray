@@ -822,6 +822,23 @@ textarea::placeholder { color: var(--md-outline); }
     margin-bottom: 10px;
 }
 
+/* Up/down reorder column at the left of each rule row */
+.routing-rule-reorder {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+    margin: -6px 0 -6px -8px;
+}
+.routing-rule-reorder .routing-rule-icon-btn {
+    padding: 3px 6px;
+}
+.routing-rule-reorder .routing-rule-icon-btn:disabled {
+    opacity: .25;
+    cursor: default;
+    pointer-events: none;
+}
+
 .routing-rule-row.rule-disabled {
     opacity: .55;
 }
