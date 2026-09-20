@@ -83,6 +83,10 @@ let advSettings = {
     queryStrategy: "UseIPv4",
     networkMode: 0,
     allowTether: true,
+    // Network tab. false (default): LAN/private/special-use destinations skip
+    // Xray. true: they are sent into Xray too, except loopback (127.0.0.0/8
+    // and ::1/128). Read by service.sh (setting_is_true includeLan).
+    includeLan: false,
     mux: false,
     mux_connections: 8,
     fragment: false,

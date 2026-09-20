@@ -98,6 +98,13 @@ LAN_BYPASS_V4="
 255.255.255.255/32
 "
 
+# NOTE: "includeLan" (Network tab, default off) does not edit these lists. It
+# only swaps which list the *bypass* rules consume: apply_routing_rules()
+# builds LAN_SKIP_V4/LAN_SKIP_V6 from them (everything when off, loopback
+# only when on) and uses those for the mangle RETURNs and the pref-5025
+# "to <cidr> lookup main" rules. The tether DNS DNAT and the pref-5030
+# "from <cidr>" rules keep using the full lists on purpose.
+#
 # IPv6. ::ffff:0:0/96 (IPv4-mapped) is included for completeness but rarely
 # appears on the wire — it mostly matters for local dual-stack sockets.
 LAN_BYPASS_V6="
@@ -778,6 +785,23 @@ apply_routing_rules() {
     allow_tether="$(setting_is_true allowTether && echo true || echo false)"
     echo "Allow tether from proxy: $allow_tether"
 
+    # includeLan (default false, fail closed): when true, LAN / private /
+    # special-use destinations are sent into Xray like any other traffic
+    # instead of being skipped. Only loopback stays excluded — 127.0.0.0/8
+    # and ::1/128 — because xray's own inbounds (socks-test-in on 127.17.1.3,
+    # local DNS, ...) live there and must never be looped through the tun.
+    # What Xray then does with LAN traffic is decided by its own routing
+    # rules (the stock config sends geoip:private / geosite:private direct).
+    include_lan="$(setting_is_true includeLan && echo true || echo false)"
+    echo "Include LAN traffic: $include_lan"
+    if [ "$include_lan" = true ]; then
+        LAN_SKIP_V4="127.0.0.0/8"
+        LAN_SKIP_V6="::1/128"
+    else
+        LAN_SKIP_V4="$LAN_BYPASS_V4"
+        LAN_SKIP_V6="$LAN_BYPASS_V6"
+    fi
+
     # bypassIface: comma-separated list of interface names whose outbound
     # traffic skips XRAY_MARK entirely (e.g. tailscale0, wt0) — useful for
     # VPN/mesh interfaces that must never be re-tunneled through the proxy.
@@ -827,7 +851,7 @@ apply_routing_rules() {
     for bypass_if in $bypass_iface_list; do
         $iptables -t mangle -A XRAY_MARK -o "$bypass_if" -j RETURN
     done
-    for cidr in $LAN_BYPASS_V4; do
+    for cidr in $LAN_SKIP_V4; do
         $iptables -t mangle -A XRAY_MARK -d "$cidr" -j RETURN
     done
 
@@ -872,7 +896,7 @@ apply_routing_rules() {
 
     # PREROUTING Mangle rules for incoming hotspot traffic
     $iptables -t mangle -N HOTSPOT_PREROUTING
-    for cidr in $LAN_BYPASS_V4; do
+    for cidr in $LAN_SKIP_V4; do
         $iptables -t mangle -A HOTSPOT_PREROUTING -d "$cidr" -j RETURN
     done
 
@@ -902,7 +926,7 @@ apply_routing_rules() {
     # Bypass LAN (IPv4). All rules share one pref each so clear_routing_rules
     # can wipe the whole set with a loop-delete, the same idiom remove_mark_rule
     # already uses for the fwmark rule.
-    for cidr in $LAN_BYPASS_V4; do
+    for cidr in $LAN_SKIP_V4; do
         $ip rule add to "$cidr" lookup main pref 5025
     done
     if [ "$allow_tether" = true ]; then
@@ -943,7 +967,7 @@ apply_routing_rules() {
         done
         $ip6tables -t mangle -A XRAY_MARK -p udp --dport 53 -j DROP
         $ip6tables -t mangle -A XRAY_MARK -p tcp --dport 53 -j DROP
-        for cidr in $LAN_BYPASS_V6; do
+        for cidr in $LAN_SKIP_V6; do
             $ip6tables -t mangle -A XRAY_MARK -d "$cidr" -j RETURN
         done
 
@@ -982,7 +1006,7 @@ apply_routing_rules() {
         $ip6tables -t mangle -N HOTSPOT_PREROUTING
         $ip6tables -t mangle -A HOTSPOT_PREROUTING -p udp --dport 53 -j DROP
         $ip6tables -t mangle -A HOTSPOT_PREROUTING -p tcp --dport 53 -j DROP
-        for cidr in $LAN_BYPASS_V6; do
+        for cidr in $LAN_SKIP_V6; do
             $ip6tables -t mangle -A HOTSPOT_PREROUTING ! -i $TUN_NAME -d "$cidr" -j RETURN
         done
         # allowTether (see query_settings allowTether, default true): only mark
@@ -997,7 +1021,7 @@ apply_routing_rules() {
         # The previous version had no equivalent here at all, so IPv6 LAN
         # traffic depended entirely on the mangle RETURNs, with no fwmark-level
         # policy-routing bypass; this closes that gap.
-        for cidr in $LAN_BYPASS_V6; do
+        for cidr in $LAN_SKIP_V6; do
             $ip -6 rule add to "$cidr" lookup main pref 5025
         done
         if [ "$allow_tether" = true ]; then

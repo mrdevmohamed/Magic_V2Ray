@@ -2946,6 +2946,8 @@ function bindSettingsToFormView() {
     document.getElementById('set-mtu').value = advSettings.mtu || 1350;
     document.getElementById('set-networkmode').value = advSettings.networkMode ?? 0;
     document.getElementById('set-allowtether').checked = advSettings.allowTether !== false;
+    // Opt-in: missing/undefined (older settings files) means off.
+    document.getElementById('set-includelan').checked = advSettings.includeLan === true;
 
     if (!Array.isArray(advSettings.routingRules)) advSettings.routingRules = [];
     renderRoutingRules();
@@ -2998,7 +3000,7 @@ function saveAdvancedSettingsForm(isLangOnly = false) {    advSettings.loglevel 
 }
 
 // Network tab: the switches apply_routing_rules reads directly (apply-on
-// mode, IPv6, tether, bypass interfaces). Unlike a node switch or an Xray-level
+// mode, IPv6, tether, LAN, bypass interfaces). Unlike a node switch or an Xray-level
 // routing-rule edit, changing them requires the iptables rules to be torn
 // down and rebuilt, so this always forces the full restart.
 // Only touches its own fields on advSettings; everything else already lives
@@ -3007,6 +3009,7 @@ function saveNetworkSettingsForm() {
     advSettings.networkMode = parseInt(document.getElementById('set-networkmode').value) || 0;
     advSettings.enableIPv6 = document.getElementById('set-enableipv6').checked;
     advSettings.allowTether = document.getElementById('set-allowtether').checked;
+    advSettings.includeLan = document.getElementById('set-includelan').checked;
 
     writeFileB64(SETTINGS_FILE, utoa(JSON.stringify(advSettings)), () => {
         applyBypassIfaceForm(() => {
