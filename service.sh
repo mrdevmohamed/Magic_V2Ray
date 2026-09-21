@@ -107,6 +107,14 @@ LAN_BYPASS_V4="
 #
 # IPv6. ::ffff:0:0/96 (IPv4-mapped) is included for completeness but rarely
 # appears on the wire — it mostly matters for local dual-stack sockets.
+#
+# FakeDNS pools must never be bypassed: the addresses Xray hands out for
+# fake DNS answers have to enter the tun so Xray can map them back to a
+# domain. IPv4 198.18.0.0/15 is simply not in LAN_BYPASS_V4. The IPv6 pool
+# (fc00::/18, see FAKEDNS_POOL_V6 in helper.js) sits inside ULA fc00::/7, so
+# that entry is written as fc00::/7 MINUS fc00::/18 — the 11 CIDRs from
+# fc00:4000::/18 up to fd00::/8. If the pool in helper.js ever changes, this
+# split has to change with it.
 LAN_BYPASS_V6="
 ::1/128
 ::ffff:0:0/96
@@ -117,7 +125,17 @@ LAN_BYPASS_V6="
 2001:20::/28
 2001:db8::/32
 2002::/16
-fc00::/7
+fc00:4000::/18
+fc00:8000::/17
+fc01::/16
+fc02::/15
+fc04::/14
+fc08::/13
+fc10::/12
+fc20::/11
+fc40::/10
+fc80::/9
+fd00::/8
 fe80::/10
 ff00::/8
 "

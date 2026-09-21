@@ -255,6 +255,22 @@ const LEGACY_DNS = [
     "https+local://exkckr7pkk.cloudflare-gateway.com/dns-query", // DoH DNS for Viettel, Mobifone, VNPT
 ]
 
+// FakeDNS address pools. The IPv6 pool is only added when IPv6 is enabled
+// (see buildFakeDnsPools). Both must stay OUT of the LAN bypass lists in
+// service.sh — the IPv6 pool is carved out of fc00::/7 there (LAN_BYPASS_V6),
+// so change the two together.
+const FAKEDNS_POOL_V4 = "198.18.0.0/15";
+const FAKEDNS_POOL_V6 = "fc00::/18";
+
+// dns.fakedns entries for the current settings.
+function buildFakeDnsPools(settings) {
+    const pools = [{ ipPool: FAKEDNS_POOL_V4, poolSize: 65535 }];
+    if (settings && settings.enableIPv6 === true) {
+        pools.push({ ipPool: FAKEDNS_POOL_V6, poolSize: 65535 });
+    }
+    return pools;
+}
+
 // Foreign DNS field default: every LEGACY_DNS entry, comma-separated.
 const DEFAULT_FOREIGN_DNS = LEGACY_DNS.join(", ");
 
@@ -1305,7 +1321,7 @@ function convert_uri_to_xray_json(uri, optional_settings) {
             servers: dnsServers,
             queryStrategy: resolveDnsQueryStrategy(settings),
             ...buildDnsEngineOptions(settings),
-            ...(useFakeIp ? { fakedns: [{ ipPool: "198.18.0.0/15", poolSize: 65535 }] } : {})
+            ...(useFakeIp ? { fakedns: buildFakeDnsPools(settings) } : {})
         },
         inbounds: [
             {
@@ -1408,7 +1424,7 @@ function convert_uri_to_xray_json(uri, optional_settings) {
                 },
                 ...(useFakeIp ? [{
                     "type": "field",
-                    "ip": ["198.18.0.0/15"],
+                    "ip": buildFakeDnsPools(settings).map(p => p.ipPool),
                     "outboundTag": "proxy"
                 }] : []),
                 // User-defined routing rules (Routing Settings tab). Evaluated in the
