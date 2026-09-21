@@ -96,6 +96,12 @@ let advSettings = {
     mtu: 1350,
     pinnedPeerCertSha256: "",
     dnsViaProxy: true,
+    // Hijack DNS (Traffic Settings). When true, port-53 traffic from tun-in /
+    // socks-test-in is routed to a `dns` outbound (tag dns-out) so Xray's own
+    // DNS module answers it, instead of forwarding the raw packets to
+    // proxy/direct. Xray's upstream DNS queries then follow dnsViaProxy.
+    // Default ON; settings saved by older versions have no value (treated as on).
+    hijackDns: true,
     // Xray dns.* engine options (Traffic Settings > DNS Engine Options).
     // Built into the config by buildDnsEngineOptions() in helper.js.
     dnsDisableCache: false,

@@ -44,6 +44,8 @@ const i18n = {
         hint_qs_usesystem: "Checks whether the device has IPv4 / IPv6 default gateways before querying and limits the query types accordingly.",
         lbl_dnsviaproxy: "Resolve DNS via proxy",
         desc_dnsviaproxy: "Wrap and route all DNS resolver via server",
+        lbl_hijackdns: "Hijack DNS",
+        desc_hijackdns: "Route DNS query to Xray's DNS module",
         lbl_fakedns: "Enable Fake DNS",
         desc_fakedns: "Use pool 198.18.0.0/15 to map domains onto virtual IPs instantly",
         // Local DNS group
@@ -460,6 +462,8 @@ const i18n = {
         hint_qs_usesystem: "查询前检测系统是否有 IPv4 / IPv6 默认网关，并据此限制查询类型。",
         lbl_dnsviaproxy: "通过代理解析 DNS",
         desc_dnsviaproxy: "将所有 DNS 解析请求封装并通过服务器转发",
+        lbl_hijackdns: "劫持 DNS",
+        desc_hijackdns: "将 DNS 查询交给 Xray 的 DNS 模块处理",
         lbl_fakedns: "启用 Fake DNS",
         desc_fakedns: "使用 198.18.0.0/15 地址池即时将域名映射为虚拟 IP",
         // Local DNS group
@@ -876,6 +880,8 @@ const i18n = {
         hint_qs_usesystem: "查詢前偵測系統是否有 IPv4 / IPv6 預設閘道，並據此限制查詢類型。",
         lbl_dnsviaproxy: "透過代理解析 DNS",
         desc_dnsviaproxy: "將所有 DNS 解析請求封裝並透過伺服器轉發",
+        lbl_hijackdns: "劫持 DNS",
+        desc_hijackdns: "將 DNS 查詢交給 Xray 的 DNS 模組處理",
         lbl_fakedns: "啟用 Fake DNS",
         desc_fakedns: "使用 198.18.0.0/15 位址池即時將網域對應為虛擬 IP",
         // Local DNS group
@@ -1292,6 +1298,8 @@ const i18n = {
         hint_qs_usesystem: "Kiểm tra thiết bị có gateway mặc định IPv4 / IPv6 hay không trước khi truy vấn, rồi giới hạn loại truy vấn tương ứng.",
         lbl_dnsviaproxy: "Phân giải DNS qua proxy",
         desc_dnsviaproxy: "Đóng gói và định tuyến tất cả truy vấn DNS qua server",
+        lbl_hijackdns: "Hijack DNS",
+        desc_hijackdns: "Chuyển truy vấn DNS sang DNS module của Xray",
         lbl_fakedns: "Bật cơ chế Fake DNS",
         desc_fakedns: "Sử dụng dải 198.18.0.0/15 để bẫy IP ảo cho tên miền ngay lập tức",
         // Local DNS group

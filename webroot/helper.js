@@ -540,6 +540,7 @@ function convert_uri_to_xray_json(uri, optional_settings) {
         mtu: 1350,
         pinnedPeerCertSha256: "",
         dnsViaProxy: true,
+        hijackDns: true,
         dnsDisableCache: false,
         dnsServeStale: false,
         dnsServeExpiredTTL: 0,
@@ -1200,6 +1201,10 @@ function convert_uri_to_xray_json(uri, optional_settings) {
     }
 
     const dnsOutboundTag = settings.dnsViaProxy ? "proxy" : "direct";
+    // Hijack DNS: client DNS (port 53 from tun-in / socks-test-in) goes to the
+    // `dns` outbound so Xray's DNS module resolves it; the module's own
+    // upstream queries (tagless, port 53) then leave via proxy/direct.
+    const hijackDns = settings.hijackDns !== false;
 
     // Resolve effective fakeip flag — new field (fakeDnsLocal) takes priority when
     // Local DNS is enabled; fall back to legacy fakeDns for backward compatibility.
@@ -1339,7 +1344,8 @@ function convert_uri_to_xray_json(uri, optional_settings) {
                 "settings": {
                     "response": { "type": "http" }
                 }
-            }
+            },
+            ...(hijackDns ? [{ "protocol": "dns", "tag": "dns-out" }] : [])
         ],
         routing: {
             "domainStrategy": routingDomainStrategy,
@@ -1355,7 +1361,8 @@ function convert_uri_to_xray_json(uri, optional_settings) {
                         "tun-in",
                     ],
                     "port": 53,
-                    "outboundTag": dnsOutboundTag
+                    // Hijack ON: hand the query to Xray's DNS module (dns-out).
+                    "outboundTag": hijackDns ? "dns-out" : dnsOutboundTag
                 },
                 // Wider rule second (1 condition): tagless internal DNS from Xray
                 // itself (app/dns, no inboundTag — tag is a synthetic

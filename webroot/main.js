@@ -2948,6 +2948,8 @@ function bindSettingsToFormView() {
     // `x || true` is always true — the checkbox could never render unchecked
     // even though the value was being persisted correctly.
     document.getElementById('set-dnsviaproxy').checked = advSettings.dnsViaProxy !== false;
+    // Default ON: settings saved by older versions have no value.
+    document.getElementById('set-hijackdns').checked = advSettings.hijackDns !== false;
     document.getElementById('set-pinned-cert').value = advSettings.pinnedPeerCertSha256 || "";
 
     // DNS engine options
@@ -3002,6 +3004,7 @@ function saveAdvancedSettingsForm(isLangOnly = false) {    advSettings.loglevel 
         delete advSettings.preferIpv6;
     }
     advSettings.dnsViaProxy = document.getElementById('set-dnsviaproxy').checked;
+    advSettings.hijackDns = document.getElementById('set-hijackdns').checked;
     advSettings.pinnedPeerCertSha256 = document.getElementById('set-pinned-cert').value.trim();
 
     // DNS engine options
