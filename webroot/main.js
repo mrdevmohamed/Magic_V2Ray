@@ -3048,6 +3048,18 @@ function saveAdvancedSettingsForm(isLangOnly = false) {    advSettings.loglevel 
     });
 }
 
+// Traffic Settings tab: restore every field it owns (TRAFFIC_SETTING_KEYS in
+// vars.js) to its default, then save and apply like the Save button does.
+// Other tabs' settings are left alone.
+async function resetTrafficSettings() {
+    const ok = await showConfirm(t('confirm_reset_traffic'));
+    if (!ok) return;
+    TRAFFIC_SETTING_KEYS.forEach(k => { advSettings[k] = TRAFFIC_SETTINGS_DEFAULTS[k]; });
+    delete advSettings.preferIpv6;
+    bindSettingsToFormView();
+    saveAdvancedSettingsForm();
+}
+
 // Network tab: the switches apply_routing_rules reads directly (apply-on
 // mode, IPv6, tether, LAN, bypass interfaces). Unlike a node switch or an Xray-level
 // routing-rule edit, changing them requires the iptables rules to be torn

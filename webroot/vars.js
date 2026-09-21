@@ -216,6 +216,27 @@ let advSettings = {
         }
     ]
 };
+// Settings owned by the Traffic Settings tab — what its "Reset to defaults"
+// button restores. Network-tab switches (apply-on mode, IPv6, tether, LAN,
+// bypass interfaces), routing rules / domainStrategy, custom hosts,
+// professional mode and the UI language are deliberately not listed.
+const TRAFFIC_SETTING_KEYS = [
+    "loglevel", "sniffing", "routeOnly", "queryStrategy",
+    "dnsViaProxy", "hijackDns", "pinnedPeerCertSha256",
+    "mux", "mux_connections",
+    "fragment", "fragment_packets", "fragment_length", "fragment_interval",
+    "mtu",
+    "localDns", "fakeDnsLocal", "vpnDns", "foreignDns", "domesticDns",
+    "dnsDisableCache", "dnsServeStale", "dnsServeExpiredTTL",
+    "dnsDisableFallback", "dnsDisableFallbackIfMatch",
+    "dnsParallelQuery", "dnsUseSystemHosts"
+];
+// Snapshot taken here, before any saved settings are loaded over advSettings,
+// so the defaults live in one place (the advSettings literal above).
+const TRAFFIC_SETTINGS_DEFAULTS = Object.freeze(
+    Object.fromEntries(TRAFFIC_SETTING_KEYS.map(k => [k, advSettings[k]]))
+);
+
 // Starting point offered by the "Load template" button in professional mode.
 // Mirrors the skeleton convert_uri_to_xray_json() produces, so a user can
 // edit rather than invent: fwmark 255 on every dialing outbound, the tun-in

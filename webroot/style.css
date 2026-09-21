@@ -1324,6 +1324,12 @@ textarea::placeholder { color: var(--md-outline); }
     box-shadow: 0 4px 16px rgba(208, 188, 255, 0.35);
 }
 
+/* Reset-to-defaults button under Save: tonal, no glow */
+.btn-reset-settings,
+.btn-reset-settings:hover {
+    box-shadow: none;
+}
+
 /* ===== Import Button Row ===== */
 .import-btn-row {
     display: flex;
