@@ -1221,6 +1221,14 @@ function convert_uri_to_xray_json(uri, optional_settings) {
         ? settings.fakeDnsLocal
         : false;
 
+    // Sniffing destOverride. With Fake DNS on, apps connect to 198.18.0.0/15
+    // addresses; "fakedns" lets the sniffer map such an IP back to the domain
+    // it was allocated for, so routing rules and the proxy see the real name.
+    // Only added when the FakeDNS pool exists (Xray refuses it otherwise).
+    const sniffDestOverride = useFakeIp
+        ? ["http", "tls", "quic", "fakedns"]
+        : ["http", "tls", "quic"];
+
     let dnsServers;
 
     if (settings.localDns) {
@@ -1311,7 +1319,7 @@ function convert_uri_to_xray_json(uri, optional_settings) {
                 },
                 "sniffing": {
                     "enabled": settings.sniffing,
-                    "destOverride": ["http", "tls", "quic"],
+                    "destOverride": sniffDestOverride,
                     "routeOnly": settings.routeOnly
                 }
             },
@@ -1329,7 +1337,7 @@ function convert_uri_to_xray_json(uri, optional_settings) {
                 },
                 "sniffing": {
                     "enabled": settings.sniffing,
-                    "destOverride": ["http", "tls", "quic"],
+                    "destOverride": sniffDestOverride,
                     "routeOnly": settings.routeOnly
                 }
             },
