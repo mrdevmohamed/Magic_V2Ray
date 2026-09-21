@@ -960,8 +960,8 @@ apply_routing_rules() {
         for bypass_if in $bypass_iface_list; do
             $ip6tables -t mangle -A XRAY_MARK -o "$bypass_if" -j RETURN
         done
-        $ip6tables -t mangle -A XRAY_MARK -p udp --dport 53 -j DROP
-        $ip6tables -t mangle -A XRAY_MARK -p tcp --dport 53 -j DROP
+        # $ip6tables -t mangle -A XRAY_MARK -p udp --dport 53 -j DROP
+        # $ip6tables -t mangle -A XRAY_MARK -p tcp --dport 53 -j DROP
         for cidr in $LAN_SKIP_V6; do
             $ip6tables -t mangle -A XRAY_MARK -d "$cidr" -j RETURN
         done
