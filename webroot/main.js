@@ -2967,7 +2967,7 @@ function bindSettingsToFormView() {
     document.getElementById('set-localdns').checked = advSettings.localDns || false;
     document.getElementById('set-fakedns-local').checked = advSettings.fakeDnsLocal || false;
     document.getElementById('set-vpndns').value = advSettings.vpnDns || "1.1.1.1";
-    document.getElementById('set-foreign-dns').value = advSettings.foreignDns || "1.1.1.1";
+    document.getElementById('set-foreign-dns').value = advSettings.foreignDns || DEFAULT_FOREIGN_DNS;
     document.getElementById('set-domestic-dns').value = advSettings.domesticDns || "223.5.5.5";
     updateDnsGroupVisibility();
     
@@ -3020,7 +3020,8 @@ function saveAdvancedSettingsForm(isLangOnly = false) {    advSettings.loglevel 
     advSettings.localDns = document.getElementById('set-localdns').checked;
     advSettings.fakeDnsLocal = document.getElementById('set-fakedns-local').checked;
     advSettings.vpnDns = document.getElementById('set-vpndns').value.trim() || "1.1.1.1";
-    advSettings.foreignDns = document.getElementById('set-foreign-dns').value.trim();
+    // Normalize the comma-separated list (trim entries, drop empties).
+    advSettings.foreignDns = splitDnsList(document.getElementById('set-foreign-dns').value).join(", ");
     advSettings.domesticDns = document.getElementById('set-domestic-dns').value.trim();
 
     advSettings.mux = document.getElementById('set-mux').checked;

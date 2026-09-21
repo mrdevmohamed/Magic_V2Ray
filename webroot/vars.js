@@ -117,7 +117,8 @@ let advSettings = {
     // CONFIG_JSON instead of being generated from the selected node.
     proMode: false,
     vpnDns: "1.1.1.1",
-    foreignDns: "1.1.1.1",
+    // Comma-separated list; defaults to every LEGACY_DNS entry (helper.js).
+    foreignDns: DEFAULT_FOREIGN_DNS,
     domesticDns: "223.5.5.5",
     // Custom DNS hosts. Stored verbatim as the user typed it (JSON object or
     // /etc/hosts-style text) so the textarea round-trips exactly; parsing

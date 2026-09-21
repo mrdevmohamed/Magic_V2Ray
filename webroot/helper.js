@@ -255,6 +255,15 @@ const LEGACY_DNS = [
     "https+local://exkckr7pkk.cloudflare-gateway.com/dns-query", // DoH DNS for Viettel, Mobifone, VNPT
 ]
 
+// Foreign DNS field default: every LEGACY_DNS entry, comma-separated.
+const DEFAULT_FOREIGN_DNS = LEGACY_DNS.join(", ");
+
+// Splits a comma-separated DNS list (as typed in a text field) into a clean
+// array: trims each entry and drops empty ones.
+function splitDnsList(str) {
+    return String(str || "").split(",").map(s => s.trim()).filter(Boolean);
+}
+
 // Helper to decode Base64 safely for both Browser and Node.js environments.
 // Accepts both the standard and the URL-safe alphabet and tolerates missing
 // padding, because subscription providers emit all three variants.
@@ -552,7 +561,7 @@ function convert_uri_to_xray_json(uri, optional_settings) {
         fakeDnsLocal: false,
         domainStrategy: "auto",
         vpnDns: "1.1.1.1",
-        foreignDns: "1.1.1.1",
+        foreignDns: DEFAULT_FOREIGN_DNS,
         domesticDns: "223.5.5.5",
         routingRules: []
     };
@@ -1250,10 +1259,9 @@ function convert_uri_to_xray_json(uri, optional_settings) {
             });
         }
 
-        // 4. Foreign DNS — fallback for everything else.
-        if (settings.foreignDns && settings.foreignDns.trim()) {
-            dnsServers.push(settings.foreignDns.trim());
-        }
+        // 4. Foreign DNS — fallback for everything else. Accepts several
+        // servers separated by commas; each becomes its own dns.servers entry.
+        splitDnsList(settings.foreignDns).forEach(addr => dnsServers.push(addr));
 
         // Ensure there is always at least one server so Xray doesn't error out.
         if (dnsServers.length === 0) {
@@ -1386,7 +1394,9 @@ function convert_uri_to_xray_json(uri, optional_settings) {
                 {
                     "type": "field",
                     "port": 53,
-                    "outboundTag": "direct"
+                    // Hijack ON: Xray's upstream DNS queries follow "Resolve DNS via
+                    // proxy" (proxy/direct); otherwise always direct.
+                    "outboundTag": hijackDns ? dnsOutboundTag : "direct"
                 },
                 ...(useFakeIp ? [{
                     "type": "field",
