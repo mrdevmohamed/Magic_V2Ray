@@ -1,3 +1,9 @@
+# Release Notes — v1.18.1
+
+Version 1.18.1 introduces critical networking and configuration adjustments designed to improve IPv6 routing stability and prevent local network detection issues. In this update, the FakeDNS IPv6 address pool has been migrated from the previous Local Unique Address space to the dedicated IETF benchmarking range at 2001:2::/48. This change prevents modern browsers, such as Chromium-based applications, from triggering unexpected local network permission prompts when establishing proxy connections.
+
+Additionally, IPv6 FakeDNS pools are now enabled unconditionally by default rather than depending on explicit IPv6 configuration flags. To maintain clean traffic handling across mobile access points, incoming IPv6 DNS packet dropping on port 53 for hotspot interfaces has been disabled. The service routing scripts have also been streamlined by cleaning up redundant subnet bypass rules that are no longer required under the updated address scheme.
+
 # Release Notes — v1.18
 
 Release v1.18 introduces flexible DNS controls, enhanced multi-server configurations, and improved settings management for a smoother proxy and routing experience.
