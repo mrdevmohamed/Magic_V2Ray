@@ -256,11 +256,15 @@ const LEGACY_DNS = [
 ]
 
 // FakeDNS address pools. The IPv6 pool is only added when IPv6 is enabled
-// (see buildFakeDnsPools). Both must stay OUT of the LAN bypass lists in
-// service.sh — the IPv6 pool is carved out of fc00::/7 there (LAN_BYPASS_V6),
-// so change the two together.
+// (see buildFakeDnsPools). Both are IETF "benchmarking" ranges (RFC2544 /
+// RFC5180) rather than RFC1918/ULA space on purpose: Chromium's Private/
+// Local Network Access only flags RFC1918 and fc00::/7 (ULA) as
+// private/local, so a benchmarking pool never triggers Chrome's "wants to
+// access devices on your local network" prompt the way an fc00::/7-based
+// pool did. Neither range needs (or gets) a LAN-bypass carve-out in
+// service.sh, since neither is in LAN_BYPASS_V4/V6 to begin with.
 const FAKEDNS_POOL_V4 = "198.18.0.0/15";
-const FAKEDNS_POOL_V6 = "fc00::/18";
+const FAKEDNS_POOL_V6 = "2001:2::/48";
 
 // dns.fakedns entries for the current settings.
 function buildFakeDnsPools(settings) {
@@ -1321,8 +1325,8 @@ function convert_uri_to_xray_json(uri, optional_settings) {
             servers: dnsServers,
             queryStrategy: resolveDnsQueryStrategy(settings),
             ...buildDnsEngineOptions(settings),
-            ...(useFakeIp ? { fakedns: buildFakeDnsPools(settings) } : {})
         },
+        ...(useFakeIp ? { fakedns: buildFakeDnsPools(settings) } : {}),
         inbounds: [
             {
                 "tag": "socks-test-in",
