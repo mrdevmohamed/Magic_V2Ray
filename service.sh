@@ -1017,8 +1017,8 @@ apply_routing_rules() {
 
         # PREROUTING Mangle rules for incoming IPv6 hotspot traffic
         $ip6tables -t mangle -N HOTSPOT_PREROUTING
-        $ip6tables -t mangle -A HOTSPOT_PREROUTING -p udp --dport 53 -j DROP
-        $ip6tables -t mangle -A HOTSPOT_PREROUTING -p tcp --dport 53 -j DROP
+        # $ip6tables -t mangle -A HOTSPOT_PREROUTING -p udp --dport 53 -j DROP
+        # $ip6tables -t mangle -A HOTSPOT_PREROUTING -p tcp --dport 53 -j DROP
         for cidr in $LAN_SKIP_V6; do
             $ip6tables -t mangle -A HOTSPOT_PREROUTING ! -i $TUN_NAME -d "$cidr" -j RETURN
         done
