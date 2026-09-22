@@ -268,11 +268,10 @@ const FAKEDNS_POOL_V6 = "2001:2::/48";
 
 // dns.fakedns entries for the current settings.
 function buildFakeDnsPools(settings) {
-    const pools = [{ ipPool: FAKEDNS_POOL_V4, poolSize: 65535 }];
-    if (settings && settings.enableIPv6 === true) {
-        pools.push({ ipPool: FAKEDNS_POOL_V6, poolSize: 65535 });
-    }
-    return pools;
+    return [
+        { ipPool: FAKEDNS_POOL_V4, poolSize: 65535 },
+        { ipPool: FAKEDNS_POOL_V6, poolSize: 65535 },
+    ];
 }
 
 // Foreign DNS field default: every LEGACY_DNS entry, comma-separated.
