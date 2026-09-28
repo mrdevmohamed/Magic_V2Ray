@@ -433,8 +433,17 @@ function convert_chain_uris_to_xray_json(hop1Uri, hop2Uri, optional_settings) {
 // Converts the user-editable Routing Settings list (advSettings.routingRules)
 // into Xray "field" routing rule objects. Only domain/ip matching is supported
 // (no process/package name yet). Disabled rules are skipped entirely.
-function _buildCustomRoutingRules(routingRules) {
+//
+// outboundTag is either a built-in (proxy / direct / block) or the remark
+// (display name) of a saved node. Node remarks are resolved through
+// `nodeTagByRemark` (built by _buildRuleNodeOutbounds); a rule pointing at a
+// node that no longer exists is dropped rather than left dangling - traffic it
+// would have matched then simply follows the remaining rules / default proxy.
+const ROUTING_BUILTIN_TAGS = ["proxy", "direct", "block"];
+
+function _buildCustomRoutingRules(routingRules, nodeTagByRemark) {
     if (!Array.isArray(routingRules)) return [];
+    nodeTagByRemark = nodeTagByRemark || {};
 
     const splitCsv = v => (typeof v === 'string' ? v : '')
         .split(',')
@@ -444,6 +453,16 @@ function _buildCustomRoutingRules(routingRules) {
     return routingRules
         .filter(r => r && r.enabled !== false)
         .map(r => {
+            const wanted = r.outboundTag || "proxy";
+            let outTag;
+            if (ROUTING_BUILTIN_TAGS.includes(wanted)) {
+                outTag = wanted;
+            } else if (Object.prototype.hasOwnProperty.call(nodeTagByRemark, wanted)) {
+                outTag = nodeTagByRemark[wanted];
+            } else {
+                return null; // unknown node remark
+            }
+
             const rule = { "type": "field" };
             const domain = splitCsv(r.domain);
             const ip = splitCsv(r.ip);
@@ -454,13 +473,70 @@ function _buildCustomRoutingRules(routingRules) {
             if (r.port && String(r.port).trim()) rule.port = String(r.port).trim();
             if (r.network && String(r.network).trim()) rule.network = String(r.network).trim();
             if (protocol.length) rule.protocol = protocol;
-            rule.outboundTag = r.outboundTag || "proxy";
+            rule.outboundTag = outTag;
 
             return rule;
         })
+        .filter(Boolean)
         // A rule with no matching conditions at all would be a no-op (or worse,
         // an accidental catch-all) — drop it defensively.
         .filter(rule => rule.domain || rule.ip || rule.port || rule.protocol);
+}
+
+// Builds the extra outbounds needed by routing rules whose outboundTag is a
+// saved node's remark. `settings.routeNodeUris` is a { remark: rawUri } map the
+// UI fills in (helper.js has no access to the saved profiles); only remarks
+// actually used by an enabled rule are converted. Each node is converted with
+// the same settings as the main proxy (mux/fragment/...), minus the custom
+// routing rules - that also prevents recursion. Chain nodes contribute both
+// hops. Returns { outbounds, tagByRemark }.
+function _buildRuleNodeOutbounds(settings) {
+    const result = { outbounds: [], tagByRemark: {} };
+    const uris = settings && settings.routeNodeUris;
+    if (!uris || typeof uris !== 'object' || !Array.isArray(settings.routingRules)) return result;
+
+    const inner = Object.assign({}, settings, { routingRules: [], routeNodeUris: null });
+
+    settings.routingRules.forEach(r => {
+        if (!r || r.enabled === false) return;
+        const remark = r.outboundTag;
+        if (!remark || ROUTING_BUILTIN_TAGS.includes(remark)) return;
+        if (Object.prototype.hasOwnProperty.call(result.tagByRemark, remark)) return;
+        if (!Object.prototype.hasOwnProperty.call(uris, remark)) return;
+
+        const tag = "node:" + remark;
+        const rawUri = String(uris[remark] || '').trim();
+        if (!rawUri) return;
+
+        try {
+            let cfg, outs;
+            if (/^chain:\/\//i.test(rawUri)) {
+                const u = new URL(rawUri.replace(/^chain:\/\//i, 'https://'));
+                cfg = JSON.parse(convert_chain_uris_to_xray_json(
+                    u.searchParams.get('hop1') || '', u.searchParams.get('hop2') || '', inner));
+                if (cfg.error) return;
+                // [hop2 ("proxy"), hop1 ("proxy-hop1"), ...] -> retag both so
+                // several chain nodes (or the active chain) never collide.
+                const hop2 = cfg.outbounds[0];
+                const hop1 = cfg.outbounds[1];
+                hop2.tag = tag;
+                hop1.tag = tag + "-hop1";
+                hop2.streamSettings.sockopt.dialerProxy = hop1.tag;
+                outs = [hop2, hop1];
+            } else {
+                cfg = JSON.parse(convert_uri_to_xray_json(rawUri, inner));
+                if (cfg.error || !Array.isArray(cfg.outbounds) || !cfg.outbounds[0]) return;
+                cfg.outbounds[0].tag = tag;
+                outs = [cfg.outbounds[0]];
+            }
+            result.outbounds.push(...outs);
+            result.tagByRemark[remark] = tag;
+        } catch (e) {
+            // Unparseable node: leave it unresolved (its rules get dropped).
+        }
+    });
+
+    return result;
 }
 
 // FinalMask (streamSettings.finalmask) is network-agnostic — it sits next to
@@ -1385,6 +1461,9 @@ function convert_uri_to_xray_json(uri, optional_settings) {
         ? settings.domainStrategy
         : (useFakeIp ? "AsIs" : "IPIfNonMatch");
 
+    // Extra outbounds for rules that target a saved node by remark.
+    const ruleNodes = _buildRuleNodeOutbounds(settings);
+
     const fullConfig = {
         log: { 
             loglevel: settings.loglevel || "none" 
@@ -1455,7 +1534,8 @@ function convert_uri_to_xray_json(uri, optional_settings) {
                     "response": { "type": "http" }
                 }
             },
-            ...(hijackDns ? [{ "protocol": "dns", "tag": "dns-out" }] : [])
+            ...(hijackDns ? [{ "protocol": "dns", "tag": "dns-out" }] : []),
+            ...ruleNodes.outbounds
         ],
         routing: {
             "domainStrategy": routingDomainStrategy,
@@ -1520,7 +1600,7 @@ function convert_uri_to_xray_json(uri, optional_settings) {
                 // User-defined routing rules (Routing Settings tab). Evaluated in the
                 // order the user arranged them, above the private-network bypass so a
                 // custom rule can override it if the user explicitly wants to.
-                ..._buildCustomRoutingRules(settings.routingRules),
+                ..._buildCustomRoutingRules(settings.routingRules, ruleNodes.tagByRemark),
                 {
                     "type": "field",
                     "ip": [

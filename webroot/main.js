@@ -1073,16 +1073,49 @@ function parseProxyUri(uri) {
     }
 }
 
+// Routing rules may target a saved node by its remark instead of
+// proxy/direct/block. _collectRouteNodeUris() returns { remark: rawUri } for
+// every such node used by an enabled rule (first node with that remark wins, in
+// profile order - the same order the rule editor lists them). helper.js turns
+// these into extra outbounds.
+const ROUTING_BUILTIN_TAGS_UI = ['proxy', 'direct', 'block'];
+
+function _nodeRemark(node) {
+    return (node && (node.name || node.address)) || '';
+}
+
+function _findNodeByRemark(remark) {
+    for (const category of Object.keys(profiles)) {
+        const node = (profiles[category]?.nodes || []).find(n => _nodeRemark(n) === remark);
+        if (node) return node;
+    }
+    return null;
+}
+
+function _collectRouteNodeUris() {
+    const map = {};
+    (advSettings.routingRules || []).forEach(r => {
+        if (!r || r.enabled === false) return;
+        const remark = r.outboundTag;
+        if (!remark || ROUTING_BUILTIN_TAGS_UI.includes(remark) || remark in map) return;
+        const node = _findNodeByRemark(remark);
+        if (node && node.rawUri) map[remark] = node.rawUri;
+    });
+    return map;
+}
+
 function _resolveXrayConfig(rawUri) {
+    // A copy, so routeNodeUris never leaks into the persisted advSettings.
+    const genSettings = Object.assign({}, advSettings, { routeNodeUris: _collectRouteNodeUris() });
     let config_json = {};
     if (rawUri && rawUri.startsWith('chain://')) {
         const fakeRawUri = rawUri.replace(/^chain:\/\//i, 'https://');
         const u = new URL(fakeRawUri);
         const hop1Uri = u.searchParams.get('hop1') || '';
         const hop2Uri = u.searchParams.get('hop2') || '';
-        config_json = convert_chain_uris_to_xray_json(hop1Uri, hop2Uri, advSettings);
+        config_json = convert_chain_uris_to_xray_json(hop1Uri, hop2Uri, genSettings);
     } else {
-        config_json = convert_uri_to_xray_json(rawUri, advSettings);
+        config_json = convert_uri_to_xray_json(rawUri, genSettings);
     }
     return config_json;
 }
@@ -3322,7 +3355,14 @@ function renderRoutingRules() {
 
         const badge = document.createElement('span');
         const tag = rule.outboundTag || 'proxy';
-        badge.className = `routing-rule-outbound-badge tag-${tag}`;
+        if (ROUTING_BUILTIN_TAGS_UI.includes(tag)) {
+            badge.className = `routing-rule-outbound-badge tag-${tag}`;
+        } else {
+            // Saved-node remark: free text, so never put it into the class name.
+            const exists = !!_findNodeByRemark(tag);
+            badge.className = `routing-rule-outbound-badge tag-node${exists ? '' : ' tag-missing'}`;
+            if (!exists) badge.title = t('opt_outbound_node_missing', { name: tag });
+        }
         badge.textContent = tag;
         info.appendChild(badge);
 
@@ -3373,6 +3413,47 @@ function moveRoutingRule(index, delta) {
     _routingPersistTimer = setTimeout(persistRoutingRules, 800);
 }
 
+// Rebuilds the outboundTag <select>: built-ins first, then every saved node
+// (grouped by category) by remark. If the rule's current target is a node that
+// has since been deleted/renamed it stays selectable and is flagged, so
+// editing the rule never silently rewrites it to "proxy".
+function _populateRuleOutboundSelect(selected) {
+    const sel = document.getElementById('rule-outbound');
+    if (!sel) return;
+    sel.innerHTML = '';
+
+    const addOpt = (parent, value, text) => {
+        const o = document.createElement('option');
+        o.value = value;
+        o.textContent = text;
+        parent.appendChild(o);
+    };
+
+    addOpt(sel, 'proxy', t('opt_outbound_proxy'));
+    addOpt(sel, 'direct', t('opt_outbound_direct'));
+    addOpt(sel, 'block', t('opt_outbound_block'));
+
+    const seen = new Set(ROUTING_BUILTIN_TAGS_UI);
+    Object.keys(profiles).forEach(category => {
+        const nodes = (profiles[category]?.nodes || []).filter(n => {
+            const r = _nodeRemark(n);
+            if (!r || seen.has(r)) return false; // built-ins win; first remark wins
+            seen.add(r);
+            return true;
+        });
+        if (!nodes.length) return;
+        const group = document.createElement('optgroup');
+        group.label = category;
+        nodes.forEach(n => addOpt(group, _nodeRemark(n), _nodeRemark(n)));
+        sel.appendChild(group);
+    });
+
+    if (selected && !seen.has(selected)) {
+        addOpt(sel, selected, t('opt_outbound_node_missing', { name: selected }));
+    }
+    sel.value = selected || 'proxy';
+}
+
 function openAddRoutingRuleModal() {
     currentEditingRuleIndex = null;
     document.getElementById('routing-rule-modal-title').setAttribute('data-i18n', 'modal_add_rule_title');
@@ -3384,7 +3465,7 @@ function openAddRoutingRuleModal() {
     document.getElementById('rule-port').value = '';
     document.getElementById('rule-protocol').value = '';
     document.getElementById('rule-network').value = '';
-    document.getElementById('rule-outbound').value = 'proxy';
+    _populateRuleOutboundSelect('proxy');
     document.getElementById('routing-rule-modal').style.display = 'block';
 }
 
@@ -3401,7 +3482,7 @@ function editRoutingRule(index) {
     document.getElementById('rule-port').value = rule.port || '';
     document.getElementById('rule-protocol').value = rule.protocol || '';
     document.getElementById('rule-network').value = rule.network || '';
-    document.getElementById('rule-outbound').value = rule.outboundTag || 'proxy';
+    _populateRuleOutboundSelect(rule.outboundTag || 'proxy');
     document.getElementById('routing-rule-modal').style.display = 'block';
 }
 
@@ -3604,7 +3685,7 @@ function importRoutingRulesFromJson() {
         port: raw.port !== undefined && raw.port !== null ? String(raw.port) : '',
         protocol: _rtToCsv(raw.protocol),
         network: raw.network || '',
-        outboundTag: raw.outboundTag || 'proxy',
+        outboundTag: String(raw.outboundTag || 'proxy'),
         enabled: raw.enabled !== false
     }));
 

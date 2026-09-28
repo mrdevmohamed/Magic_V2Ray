@@ -904,6 +904,22 @@ textarea::placeholder { color: var(--md-outline); }
     color: var(--md-on-error-container);
 }
 
+.routing-rule-outbound-badge.tag-node {
+    background: var(--md-secondary-container);
+    color: var(--md-on-secondary-container);
+    text-transform: none;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+}
+.routing-rule-outbound-badge.tag-node.tag-missing {
+    background: var(--md-error-container);
+    color: var(--md-on-error-container);
+    text-decoration: line-through;
+}
+
 .routing-rule-actions {
     display: flex;
     align-items: center;
