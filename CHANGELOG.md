@@ -1,3 +1,7 @@
+# Release Notes — v1.19.1
+
+Support routing rules with outbound Custom node instead of proxy/direct/block
+
 # Release Notes — v1.19
 
 **Direct Cloudflare WARP Account Generation**
