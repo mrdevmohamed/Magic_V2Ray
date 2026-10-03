@@ -348,7 +348,6 @@ const i18n = {
         // Latency monitor tab
         tab_latency: "Network latency",
         tab_menu: "Navigation menu",
-        latency_enable_monitor: "Enable monitor",
         latency_net_iface: "Interface",
         latency_net_ipv4: "IPv4",
         latency_net_ipv6: "IPv6",
@@ -373,8 +372,6 @@ const i18n = {
         latency_legend_ok: "Response time (ms)",
         latency_legend_timeout: "Timeout / no connection",
         latency_timeout_label: "Timeout",
-        toast_latency_started: "Latency monitor started.",
-        toast_latency_stopped: "Latency monitor stopped.",
 
         // Routing Settings tab
         tab_routing: "Routing settings",
@@ -795,7 +792,6 @@ const i18n = {
         // Latency monitor tab
         tab_latency: "网络延迟",
         tab_menu: "导航菜单",
-        latency_enable_monitor: "启用监控",
         latency_net_iface: "网络接口",
         latency_net_ipv4: "IPv4",
         latency_net_ipv6: "IPv6",
@@ -820,8 +816,6 @@ const i18n = {
         latency_legend_ok: "响应时间（毫秒）",
         latency_legend_timeout: "超时 / 无连接",
         latency_timeout_label: "超时",
-        toast_latency_started: "延迟监控已启动。",
-        toast_latency_stopped: "延迟监控已停止。",
 
         // Routing Settings tab
         tab_routing: "路由设置",
@@ -1242,7 +1236,6 @@ const i18n = {
         // Latency monitor tab
         tab_latency: "網路延遲",
         tab_menu: "導覽選單",
-        latency_enable_monitor: "啟用監控",
         latency_net_iface: "網路介面",
         latency_net_ipv4: "IPv4",
         latency_net_ipv6: "IPv6",
@@ -1267,8 +1260,6 @@ const i18n = {
         latency_legend_ok: "回應時間（毫秒）",
         latency_legend_timeout: "逾時 / 無連線",
         latency_timeout_label: "逾時",
-        toast_latency_started: "延遲監控已啟動。",
-        toast_latency_stopped: "延遲監控已停止。",
 
         // Routing Settings tab
         tab_routing: "路由設定",
@@ -1689,7 +1680,6 @@ const i18n = {
         // Latency monitor tab
         tab_latency: "Độ trễ mạng",
         tab_menu: "Menu điều hướng",
-        latency_enable_monitor: "Bật theo dõi",
         latency_net_iface: "Giao diện mạng",
         latency_net_ipv4: "IPv4",
         latency_net_ipv6: "IPv6",
@@ -1714,8 +1704,6 @@ const i18n = {
         latency_legend_ok: "Thời gian phản hồi (ms)",
         latency_legend_timeout: "Timeout / mất kết nối",
         latency_timeout_label: "Timeout",
-        toast_latency_started: "Đã bật theo dõi độ trễ mạng.",
-        toast_latency_stopped: "Đã tắt theo dõi độ trễ mạng.",
 
         // Routing Settings tab
         tab_routing: "Định tuyến",

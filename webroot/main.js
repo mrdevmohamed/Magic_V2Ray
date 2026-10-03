@@ -2909,7 +2909,7 @@ window.addEventListener('pagehide', () => {
     // Best-effort: the exec may not complete if we are killed immediately,
     // which is exactly why the backend also self-terminates on heartbeat
     // timeout rather than relying on this.
-    if (document.getElementById('latency-monitor-toggle')?.checked) {
+    if (_isLatencyTabActive()) {
         execShell(`sh ${MODDIR}/proxy_control.sh stop_monitor_latency`, () => {});
     }
 });
@@ -2927,6 +2927,7 @@ function escapeHtml(str) {
 }
  
 function switchTab(tabId, evt) {
+    const prevTabId = document.querySelector('.tab-content.active')?.id;
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-menu-item').forEach(el => {
         el.classList.remove('active');
@@ -2949,11 +2950,13 @@ function switchTab(tabId, evt) {
         stopLogAutoRefresh();
     }
 
+    // The latency monitor lives exactly as long as its tab is open: started
+    // on entry, stopped on exit (re-clicking the current tab changes nothing).
     if (tabId === 'tab-latency') {
-        syncLatencyMonitorState();
+        if (prevTabId !== 'tab-latency') startLatencyMonitor();
         syncIpHunterState();
-    } else {
-        stopLatencyPolling();
+    } else if (prevTabId === 'tab-latency') {
+        stopLatencyMonitor();
     }
 
     if (tabId === 'tab-routing') {
@@ -4208,48 +4211,49 @@ function copyLogToClipboard() {
 
 /* ===== Network Latency Monitor ===== */
 
-// Reflects real backend state (whether service.sh's monitor loop is alive)
-// by checking for the existence of TIME_RES_FILE, rather than trusting local UI state,
-// so the toggle stays correct across tab switches / page reloads.
-function syncLatencyMonitorState() {
-    execShell(`[ -f '${TIME_RES_FILE}' ] && echo 1 || echo 0`, (output) => {
-        const isRunning = output.trim() === '1';
-        const toggle = document.getElementById('latency-monitor-toggle');
-        if (toggle) toggle.checked = isRunning;
+function _isLatencyTabActive() {
+    return document.getElementById('tab-latency')?.classList.contains('active') === true;
+}
 
+// There is no on/off switch: the backend probe runs while the Latency tab is
+// visible and nowhere else (see switchTab, _resumeBackgroundWork and the
+// pagehide handler). Starting always restarts the backend loop from a clean
+// state, so a leftover probe from a previous visit can never be mistaken for
+// a live one.
+function startLatencyMonitor() {
+    execShell(`sh ${MODDIR}/proxy_control.sh start_monitor_latency`, () => {
+        // The user may have left the tab (or backgrounded the WebUI) while
+        // the exec was in flight. Don't poll then; with no heartbeat the
+        // backend loop ends by itself after LATENCY_HB_TIMEOUT.
+        if (!_isLatencyTabActive() || document.hidden) return;
+        _latencySamples = [];
         renderLatencyChart();
-
-        if (isRunning) {
-            startLatencyPolling();
-        } else {
-            stopLatencyPolling();
-            const dot = document.getElementById('latency-status-dot');
-            dot && dot.classList.remove('live');
-            renderNetworkInterfaceInfo('');
-        }
+        updateLatencyStats();
+        startLatencyPolling();
     });
 }
 
-function toggleLatencyMonitor() {
-    const enabled = document.getElementById('latency-monitor-toggle')?.checked;
+function stopLatencyMonitor() {
+    stopLatencyPolling();
+    const dot = document.getElementById('latency-status-dot');
+    dot && dot.classList.remove('live');
+    renderNetworkInterfaceInfo('');
+    execShell(`sh ${MODDIR}/proxy_control.sh stop_monitor_latency`, () => {});
+}
 
-    if (enabled) {
-        execShell(`sh ${MODDIR}/proxy_control.sh start_monitor_latency`, () => {
-            _latencySamples = [];
+// Used when the WebUI comes back to the foreground while the Latency tab is
+// open: keep the running probe (and its chart) if the backend is still alive,
+// restart it if it timed out on the stale heartbeat while we were away.
+function syncLatencyMonitorState() {
+    execShell(`[ -f '${TIME_RES_FILE}' ] && echo 1 || echo 0`, (output) => {
+        if (!_isLatencyTabActive() || document.hidden) return;
+        if (output.trim() === '1') {
             renderLatencyChart();
-            updateLatencyStats();
             startLatencyPolling();
-            showToast(t('toast_latency_started'), 'success');
-        });
-    } else {
-        stopLatencyPolling();
-        const dot = document.getElementById('latency-status-dot');
-        dot && dot.classList.remove('live');
-        renderNetworkInterfaceInfo('');
-        execShell(`sh ${MODDIR}/proxy_control.sh stop_monitor_latency`, () => {
-            showToast(t('toast_latency_stopped'), 'info');
-        });
-    }
+        } else {
+            startLatencyMonitor();
+        }
+    });
 }
 
 function startLatencyPolling() {
