@@ -1331,6 +1331,7 @@ textarea::placeholder { color: var(--md-outline); }
     border-top: 1px solid var(--md-outline-variant);
     padding-top: 16px;
     margin-top: 8px;
+    margin-bottom: 24px;
 }
 
 /* Disabled/grayed setting row */
