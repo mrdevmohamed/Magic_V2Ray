@@ -1,20 +1,14 @@
-# Release Notes — v1.19.1
+# Release Notes — v1.20
 
-Support routing rules with outbound Custom node instead of proxy/direct/block
+Magic V2Ray v1.20 brings significant feature additions, system-level enhancements, and UI improvements focused on application control, network compatibility, and log handling.
 
-# Release Notes — v1.19
+The release introduces the Exclude Apps feature, allowing specific applications to bypass the proxy entirely and connect directly at the OS level. The system handles list management through the WebUI, dynamically updates IPTables rules, and uses inotify to automatically process app installs or uninstalls in real time.
 
-**Direct Cloudflare WARP Account Generation**
-This release introduces direct Cloudflare WARP account registration natively integrated into the interface. Users can now generate a fresh, free Cloudflare WARP account directly against Cloudflare's API with a single click in the WireGuard node settings, eliminating the need for external tools like wgcf-cli. Key generation is handled natively via Xray, with credentials, server keys, and reserved bytes derived automatically and populated into the configuration fields. The interface copy and localized translation strings across all supported languages have been updated to reflect these simplified management options.
+IPv6 routing capabilities are expanded with support for IPv6 ULA Decoy. When active, a local-only Unique Local Address is advertised on the active interface so applications recognize IPv6 connectivity even on IPv4-only physical networks, keeping IPv6 socket support intact while funneling traffic safely through Xray.
 
-**Header Redesign and Streamlined Service Controls**
-The web user interface receives structural enhancements to improve layout clarity and interaction efficiency. Core engine controls, including the engine toggle actions, have been relocated into the top header bar for consistent access across all management tabs. The header structure has been refined with flexible row wrapping and improved text truncation for device status labels, ensuring clean presentation on narrow screen dimensions.
+Log handling receives a dedicated daemon service, moving away from simple tail operations to provide smooth, real-time log streaming and memory-safe buffer management. The log view in the WebUI is upgraded with adjustable font sizing, word-wrap toggles, and improved styling.
 
-**Improved TUN Interface Setup and Error Handling**
-Network initialization logic has been reinforced to prevent partial engine starts and hanging states when the TUN interface fails to initialize. The TUN device configuration routine now enforces strict status checks and fails fast with an explicit error log if the interface does not appear within the increased retry window. These checks are integrated into both the initial routing setup and service restart procedures to guarantee system stability.
-
-**Asynchronous UI Loading Updates**
-User interface responsiveness during background operations has been enhanced across several interactive flows. Operations such as active IP verification, subscription fetching, and routing preset updates now utilize asynchronous loading state handling. This prevents UI thread blocking and ensures loading overlays display smoothly during network requests.
+Additionally, outbound TLS configurations now support peer certificate verification by name (`verifyPeerCertByName`), and ECH configuration parameters have been extended to Hysteria2 links. The network latency monitor has also been updated to operate directly with the lifecycle of its WebUI tab, automatically running when opened and stopping upon leaving.
 
 ---
 
