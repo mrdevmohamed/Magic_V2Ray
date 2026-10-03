@@ -8,13 +8,14 @@
 #   3.  Process tracking (/proc bind-mount liveness)
 #   4.  Interface + policy-routing helpers
 #   5.  Mobile IP hunter
-#   6.  Monitors (network interface, latency)  <- event-driven, bounded
+#   6.  Monitors (network interface, latency, apps)  <- event-driven, bounded
 #   7.  Routing rules  <- UNCHANGED in this pass, pending review
 #   8.  Command loop
 #   9.  Boot sequencer
 #
 # NOTE: section 7 (apply_routing_rules / clear_routing_rules) is intentionally
-# carried over verbatim. The firewall/DNS/fail-safe fixes for it are staged as
+# carried over verbatim (apart from the Exclude Apps hooks: the XRAY_EXCLUDE_APP
+# jump in each XRAY_MARK chain and the sync_exclude_apps call). The firewall/DNS/fail-safe fixes for it are staged as
 # separate reviewed changes so a routing regression can never be confused with
 # a lifecycle regression.
 
@@ -61,6 +62,14 @@ LATENCY_HB_FILE="$RUN_DIR/latency.hb"
 PIPE_FILE="$RUN_DIR/control.pipe"
 IFACE_EVENT_PIPE="$RUN_DIR/iface_events.pipe"
 IFACE_MON_CHILD="$RUN_DIR/iface_monitor_child.pid"
+
+# Exclude Apps (see "Exclude Apps" in section 6). EXCLUDE_LIST_FILE is written
+# by the WebUI; the uid records and the event FIFO live in tmpfs.
+APP_DATA_DIR="/data/data"
+EXCLUDE_LIST_FILE="$DATADIR/excludelist.txt"
+EXCLUDE_MAP_DIR="$RUN_DIR/exclude_uids"
+APP_EVENT_PIPE="$RUN_DIR/app_events.pipe"
+APPS_MON_CHILD="$RUN_DIR/apps_monitor_child.pid"
 
 # List of UIDs we want them to be routed into Xray-core
 XRAY_UID_LIST="
@@ -181,6 +190,7 @@ chmod 600 "$PIPE_FILE" 2>/dev/null
 XRAY_PID=0
 IFACE_MONITOR_PID=0
 LATENCY_MONITOR_PID=0
+APPS_MONITOR_PID=0
 
 ip="/system/bin/ip"
 iptables="/system/bin/iptables"
@@ -635,6 +645,254 @@ stop_iface_monitor() {
     rm -f "$IFACE_EVENT_PIPE"
 }
 
+# --- Exclude Apps ----------------------------------------------------------
+#
+# Apps listed in $EXCLUDE_LIST_FILE (one package name per line, written by the
+# Exclude Apps tab) skip Xray when the "excludeApps" setting is true.
+#
+# Mechanism: a standalone mangle chain, XRAY_EXCLUDE_APP, holds one
+# `-m owner --uid-owner <uid> -j ACCEPT` rule per excluded uid. XRAY_MARK
+# jumps to it before anything is marked. ACCEPT rather than RETURN for the
+# same reason as BYPASS_VPN_UID: the chain is entered with a plain jump, so
+# RETURN would only unwind into XRAY_MARK and the MARK rules below would
+# still catch the uid.
+#
+# Lifecycle:
+#   * Full start (apply_routing_rules -> sync_exclude_apps): the chain is
+#     flushed and rebuilt from the list. The UI forces a full restart on every
+#     change, so the list file never changes under a running monitor.
+#   * monitor_apps (started right after, only while the feature is on) keeps
+#     the chain correct between restarts as apps come and go. It watches
+#     /data/data with inotifyd: <pkg> appears on install, disappears on
+#     uninstall.
+#
+# Removal cannot stat() a directory that is already gone, so every rule is
+# recorded in $EXCLUDE_MAP_DIR/<pkg> (contents: the uid). The record also
+# keeps shared-uid packages honest: a uid's rule is only deleted once the
+# last excluded package using it is gone, and a uid Android later hands to a
+# different app is never left excluded by mistake.
+#
+# Only user 0 (/data/data) is covered.
+
+ensure_exclude_app_chain() {
+    $iptables  -t mangle -N XRAY_EXCLUDE_APP 2>/dev/null
+    $ip6tables -t mangle -N XRAY_EXCLUDE_APP 2>/dev/null
+    return 0
+}
+
+# Empties the chain and the uid records. Chain and records are always reset
+# together so they cannot disagree.
+reset_exclude_app_chain() {
+    ensure_exclude_app_chain
+    $iptables  -t mangle -F XRAY_EXCLUDE_APP 2>/dev/null
+    $ip6tables -t mangle -F XRAY_EXCLUDE_APP 2>/dev/null
+    rm -rf "${EXCLUDE_MAP_DIR:?}" 2>/dev/null
+    mkdir -p "$EXCLUDE_MAP_DIR"
+    return 0
+}
+
+# The list name ends up in a path under /data/data, so reject anything that
+# is not a plain package name (no slashes, no leading dot, no "..").
+valid_pkg_name() {
+    case "$1" in
+        ''|.*|*..*|*[!A-Za-z0-9_.]*) return 1 ;;
+    esac
+    return 0
+}
+
+# Cleaned list, one entry per line (CRs, comments and blank lines removed).
+read_exclude_list() {
+    [ -f "$EXCLUDE_LIST_FILE" ] || return 0
+    tr -d '\r' < "$EXCLUDE_LIST_FILE" \
+        | sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+        | grep -v '^$'
+}
+
+exclude_list_has() {
+    read_exclude_list | grep -qxF -- "$1"
+}
+
+# Owner uid of /data/data/<pkg>. installd creates the directory first and
+# chowns it a moment later, so on install events retry until it is no longer
+# root-owned.
+get_app_uid() {
+    local pkg="$1" tries="${2:-1}" uid n=0
+    while :; do
+        uid=$(stat -c '%u' "$APP_DATA_DIR/$pkg" 2>/dev/null)
+        case "$uid" in *[!0-9]*) uid="" ;; esac
+        if [ -n "$uid" ] && [ "$uid" -ge 1000 ]; then
+            echo "$uid"
+            return 0
+        fi
+        n=$((n + 1))
+        [ "$n" -ge "$tries" ] && return 1
+        sleep 0.2
+    done
+}
+
+# True if another recorded package (not $1) already holds uid $2.
+uid_held_by_other() {
+    local pkg="$1" uid="$2" f
+    for f in "$EXCLUDE_MAP_DIR"/*; do
+        [ -f "$f" ] || continue
+        [ "${f##*/}" = "$pkg" ] && continue
+        [ "$(cat "$f" 2>/dev/null)" = "$uid" ] && return 0
+    done
+    return 1
+}
+
+exclude_uid_rule_add() {
+    $iptables  -t mangle -A XRAY_EXCLUDE_APP -m owner --uid-owner "$1" -j ACCEPT
+    $ip6tables -t mangle -A XRAY_EXCLUDE_APP -m owner --uid-owner "$1" -j ACCEPT
+}
+
+exclude_uid_rule_del() {
+    $iptables  -t mangle -D XRAY_EXCLUDE_APP -m owner --uid-owner "$1" -j ACCEPT 2>/dev/null
+    $ip6tables -t mangle -D XRAY_EXCLUDE_APP -m owner --uid-owner "$1" -j ACCEPT 2>/dev/null
+}
+
+# Adds $1's uid to the chain (idempotent). $2 = uid read attempts.
+exclude_app_add() {
+    local pkg="$1" tries="${2:-1}" uid old
+    valid_pkg_name "$pkg" || return 1
+    uid="$(get_app_uid "$pkg" "$tries")" || return 1
+
+    old="$(cat "$EXCLUDE_MAP_DIR/$pkg" 2>/dev/null)"
+    [ "$old" = "$uid" ] && return 0
+
+    if [ -n "$old" ]; then
+        # The package came back under a different uid without us seeing it go.
+        rm -f "$EXCLUDE_MAP_DIR/$pkg"
+        uid_held_by_other "$pkg" "$old" || exclude_uid_rule_del "$old"
+    fi
+
+    echo "$uid" > "$EXCLUDE_MAP_DIR/$pkg"
+    # A shared uid already has its rule; adding it again would just duplicate.
+    uid_held_by_other "$pkg" "$uid" || exclude_uid_rule_add "$uid"
+    log "exclude apps: $pkg (uid $uid) excluded"
+    return 0
+}
+
+# Drops $1's uid from the chain, using the record since the directory is gone.
+exclude_app_remove() {
+    local pkg="$1" uid
+    valid_pkg_name "$pkg" || return 1
+    [ -f "$EXCLUDE_MAP_DIR/$pkg" ] || return 0
+    uid="$(cat "$EXCLUDE_MAP_DIR/$pkg" 2>/dev/null)"
+    rm -f "$EXCLUDE_MAP_DIR/$pkg"
+    if [ -n "$uid" ] && ! uid_held_by_other "$pkg" "$uid"; then
+        exclude_uid_rule_del "$uid"
+    fi
+    log "exclude apps: $pkg (uid ${uid:-?}) no longer excluded"
+    return 0
+}
+
+# Brings the chain in line with what is installed right now.
+reconcile_exclude_apps() {
+    local list pkg
+    list="$(read_exclude_list)"
+    [ -z "$list" ] && return 0
+    while read -r pkg; do
+        valid_pkg_name "$pkg" || continue
+        if [ -d "$APP_DATA_DIR/$pkg" ]; then
+            exclude_app_add "$pkg"
+        else
+            exclude_app_remove "$pkg"
+        fi
+    done <<EOF
+$list
+EOF
+    return 0
+}
+
+# Full reset + rebuild. Called from apply_routing_rules() BEFORE XRAY_MARK is
+# attached to OUTPUT, so excluded apps are never briefly proxied.
+sync_exclude_apps() {
+    reset_exclude_app_chain
+    if ! setting_is_true excludeApps; then
+        log "exclude apps: disabled"
+        return 0
+    fi
+    reconcile_exclude_apps
+    log "exclude apps: $(ls -1 "$EXCLUDE_MAP_DIR" 2>/dev/null | wc -l) app(s) in XRAY_EXCLUDE_APP"
+    return 0
+}
+
+# Event-driven like monitor_net_interfaces: inotifyd writes to a FIFO and its
+# pid is recorded, so stop_apps_monitor can kill it (a plain pipeline would
+# orphan it). Events look like "n<TAB>/data/data<TAB>com.foo" (n = subfile
+# created, d = subfile deleted); the package is taken from the last field.
+monitor_apps() {
+    local line events path name
+
+    rm -f "$APP_EVENT_PIPE"
+    mkfifo "$APP_EVENT_PIPE" 2>/dev/null || return 1
+
+    inotifyd - "$APP_DATA_DIR:nd" > "$APP_EVENT_PIPE" 2>/dev/null &
+    echo $! > "$APPS_MON_CHILD"
+
+    # Opening the read end lets the backgrounded inotifyd get past its own
+    # open of the FIFO. Keep it on fd 3 so the catch-up below can run first.
+    exec 3< "$APP_EVENT_PIPE"
+
+    # Anything installed/removed between sync_exclude_apps() and the watch
+    # becoming active; events arriving meanwhile just queue in the FIFO.
+    sleep 0.3
+    reconcile_exclude_apps
+    log "apps monitor: watching $APP_DATA_DIR"
+
+    while read -r line <&3; do
+        read -r events path name <<EOF
+$line
+EOF
+        [ -z "$name" ] && name="${path##*/}"
+        name="${name##*/}"
+        valid_pkg_name "$name" || continue
+
+        case "$events" in
+            *n*)
+                if exclude_list_has "$name"; then
+                    exclude_app_add "$name" 15 \
+                        || log "apps monitor: could not read uid of $name"
+                fi
+                ;;
+            *d*)
+                exclude_app_remove "$name"
+                ;;
+        esac
+    done
+
+    exec 3<&-
+    log "apps monitor exiting"
+}
+
+stop_apps_monitor() {
+    if [ -f "$APPS_MON_CHILD" ]; then
+        local child
+        child=$(cat "$APPS_MON_CHILD" 2>/dev/null)
+        [ -n "$child" ] && kill -9 "$child" 2>/dev/null
+        rm -f "$APPS_MON_CHILD"
+    fi
+    kill_tracked "$APPS_MONITOR_PID" "monitor_apps"
+    APPS_MONITOR_PID=0
+    rm -f "$APP_EVENT_PIPE"
+}
+
+# Only runs while Exclude apps is on. Changing that setting restarts the
+# engine, which comes back through here, so no separate re-check is needed.
+start_apps_monitor() {
+    stop_apps_monitor
+    if ! setting_is_true excludeApps; then
+        log "apps monitor: Exclude apps is off, not started"
+        return 0
+    fi
+    monitor_apps &
+    APPS_MONITOR_PID=$!
+    mount_proc_with_name "$APPS_MONITOR_PID" "monitor_apps"
+    log "apps monitor running with pid $APPS_MONITOR_PID"
+    return 0
+}
+
 # --- Latency monitor -------------------------------------------------------
 #
 # Bounded by a heartbeat the UI refreshes while its Latency tab is visible.
@@ -847,6 +1105,11 @@ apply_routing_rules() {
     # just a cheap self-heal in case that boot-time call was ever missed.
     ensure_bypass_vpn_chain
 
+    # Rebuild XRAY_EXCLUDE_APP from the Exclude Apps list. Done now, before
+    # XRAY_MARK is attached to OUTPUT below, so excluded apps are never
+    # proxied even for a moment. monitor_apps keeps it current afterwards.
+    sync_exclude_apps
+
     # Loosen rp_filter on the hotspot/AP interface (see loosen_rp_filter above)
     loosen_rp_filter
 
@@ -862,6 +1125,8 @@ apply_routing_rules() {
     # Foreign VpnService apps (see BYPASS_VPN_UID above) never get marked,
     # so xray never re-swallows their already-tunneled traffic and loops.
     $iptables -t mangle -A XRAY_MARK -j BYPASS_VPN_UID
+    # Excluded apps (Exclude Apps tab) are never marked either.
+    $iptables -t mangle -A XRAY_MARK -j XRAY_EXCLUDE_APP
     $iptables -t mangle -A XRAY_MARK -m mark --mark $FWMARK -j RETURN
     # bypassIface: let traffic bound for these interfaces skip the proxy
     # entirely, ahead of the networkMode logic below.
@@ -977,6 +1242,7 @@ apply_routing_rules() {
         $ip6tables -t mangle -N XRAY_MARK
         # See the IPv4 XRAY_MARK chain above for why this jump exists.
         $ip6tables -t mangle -A XRAY_MARK -j BYPASS_VPN_UID
+        $ip6tables -t mangle -A XRAY_MARK -j XRAY_EXCLUDE_APP
         $ip6tables -t mangle -A XRAY_MARK -m mark --mark $FWMARK -j RETURN
         # bypassIface: mirrors the IPv4 XRAY_MARK rule above.
         for bypass_if in $bypass_iface_list; do
@@ -1062,6 +1328,7 @@ apply_routing_rules() {
         $ip6tables -t mangle -N XRAY_MARK
         # See the IPv4 XRAY_MARK chain above for why this jump exists.
         $ip6tables -t mangle -A XRAY_MARK -j BYPASS_VPN_UID
+        $ip6tables -t mangle -A XRAY_MARK -j XRAY_EXCLUDE_APP
         # Allow core proxy socket bypass if fwmark is already present
         $ip6tables -t mangle -A XRAY_MARK -m mark --mark $FWMARK -j RETURN
         if [ "$network_mode" = "1" ]; then
@@ -1193,11 +1460,13 @@ start_xray() {
 
     mount_proc_with_name "$XRAY_PID" "xray"
     apply_routing_rules
+    start_apps_monitor
     touch "$ENABLED_FLAG"
     return 0
 }
 
 stop_xray() {
+    stop_apps_monitor
     clear_routing_rules 2>/dev/null
 
     # Kill by tracked PID, then fall back to the pid file. The fallback covers
@@ -1313,6 +1582,15 @@ do_job() {
             log "interface monitor stopped"
             return 0
             ;;
+        start_monitor_apps)
+            start_apps_monitor
+            return 0
+            ;;
+        stop_monitor_apps)
+            stop_apps_monitor
+            log "apps monitor stopped"
+            return 0
+            ;;
         start_monitor_latency)
             stop_latency_monitor
             monitor_network_latency &
@@ -1382,6 +1660,7 @@ fi
 # VpnService becomes the active route — independent of whether xray itself
 # is ever started this boot.
 ensure_bypass_vpn_chain
+ensure_exclude_app_chain
 
 echo "start_monitor" > "$PIPE_FILE"
 
