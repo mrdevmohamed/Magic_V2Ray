@@ -308,7 +308,13 @@
                     </div>
                     <div class="setting-item-row toggle-row">
                         <label for="set-enableipv6"><span data-i18n="lbl_enableipv6">Enable IPv6</span><small data-i18n="desc_enableipv6">Allow IPv6 network connectivity</small></label>
-                        <input type="checkbox" id="set-enableipv6">
+                        <input type="checkbox" id="set-enableipv6" onchange="toggleSubSettingField('set-enableipv6', 'enableipv6ula-sub-fields')">
+                    </div>
+                    <div id="enableipv6ula-sub-fields" class="sub-setting-panel">
+                        <div class="setting-item-row toggle-row">
+                            <label for="set-enableipv6ula"><span data-i18n="lbl_enableipv6ula">Advertise IPv6 to apps</span><small data-i18n="desc_enableipv6ula">Adds a local-only IPv6 (ULA) address to the active network interface so apps believe IPv6 works and use it. Traffic is still carried by Xray. Needed when the real network has no IPv6.</small></label>
+                            <input type="checkbox" id="set-enableipv6ula">
+                        </div>
                     </div>
                     <div class="setting-item-row toggle-row">
                         <label for="set-allowtether"><span data-i18n="lbl_allowtether">Allow Tether from Proxy</span><small data-i18n="desc_allowtether">Route tethered/hotspot clients through the proxy. Disable to let them bypass the proxy and use the direct connection.</small></label>

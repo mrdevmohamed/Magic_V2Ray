@@ -71,6 +71,15 @@ EXCLUDE_MAP_DIR="$RUN_DIR/exclude_uids"
 APP_EVENT_PIPE="$RUN_DIR/app_events.pipe"
 APPS_MON_CHILD="$RUN_DIR/apps_monitor_child.pid"
 
+# IPv6 ULA decoy (see "IPv6 ULA decoy" in section 6). ULA_FLAG existing means
+# the feature is active for this engine run (written by apply_routing_rules,
+# removed by clear_routing_rules), so the interface monitor can test it with
+# no forks. ULA_IFACE_FILE remembers which interface currently carries the
+# address; ULA_SUFFIX_FILE keeps the random xxxx:xxxx stable until reboot.
+ULA_FLAG="$RUN_DIR/ula_enabled"
+ULA_IFACE_FILE="$RUN_DIR/ula_iface"
+ULA_SUFFIX_FILE="$RUN_DIR/ula_suffix"
+
 # List of UIDs we want them to be routed into Xray-core
 XRAY_UID_LIST="
 0-2147483647
@@ -562,6 +571,82 @@ check_ip_hunter() {
 # 6. Monitors
 # ===========================================================================
 
+# --- IPv6 ULA decoy ----------------------------------------------------------
+#
+# xraytun0 is not the default network, so Android judges IPv6 by the physical
+# interface alone. When that interface only has IPv4, apps see "no IPv6" and
+# never open IPv6 sockets, even though Xray could carry them. With the
+# "enableIPv6ULA" setting on (and enableIPv6), a fc00::xxxx:xxxx/128 address is
+# added to the active interface so apps consider IPv6 usable. Only the address
+# is added, never a route: marked packets are re-routed into $TUN_NAME by
+# XRAY_MARK, and Xray's own egress (fwmark $FWMARK) must keep falling back to
+# IPv4 instead of trying a v6 path that goes nowhere.
+#
+# /128 + noprefixroute: no connected prefix route is created in the main table.
+# nodad: the address is usable immediately instead of sitting in "tentative".
+
+ula_suffix() {
+    local u hi lo
+    if [ -s "$ULA_SUFFIX_FILE" ]; then
+        cat "$ULA_SUFFIX_FILE"
+        return 0
+    fi
+    u=$(tr -d '-' < /proc/sys/kernel/random/uuid 2>/dev/null)
+    [ "${#u}" -ge 8 ] || return 1
+    # printf %x drops leading zeros so the text matches what `ip addr show`
+    # prints back (needed by the grep in ula_apply). A zero first group would
+    # be compressed away by `ip`, so nudge it to 1.
+    hi=$(printf '%x' "0x$(echo "$u" | cut -c1-4)")
+    lo=$(printf '%x' "0x$(echo "$u" | cut -c5-8)")
+    [ "$hi" = 0 ] && hi=1
+    echo "$hi:$lo" | tee "$ULA_SUFFIX_FILE"
+}
+
+# Idempotent: makes sure the active interface carries the ULA address and
+# that no other interface still does. Cheap no-op when the feature is off.
+ula_apply() {
+    local iface="$1" suffix addr old
+    [ -f "$ULA_FLAG" ] || return 0
+    [ -n "$iface" ] || return 0
+    [ "$iface" = "$TUN_NAME" ] && return 0
+
+    suffix=$(ula_suffix) || { log "ULA: could not generate address"; return 1; }
+    addr="fc00::$suffix"
+
+    old=$(cat "$ULA_IFACE_FILE" 2>/dev/null)
+    if [ -n "$old" ] && [ "$old" != "$iface" ]; then
+        $ip -6 addr del "$addr/128" dev "$old" 2>/dev/null
+        log "ULA: removed $addr from $old"
+    fi
+
+    if $ip -6 addr show dev "$iface" 2>/dev/null | grep -qF "inet6 $addr/128"; then
+        echo "$iface" > "$ULA_IFACE_FILE"
+        return 0
+    fi
+
+    if $ip -6 addr replace "$addr/128" dev "$iface" nodad noprefixroute 2>/dev/null \
+        || $ip -6 addr replace "$addr/128" dev "$iface" 2>/dev/null; then
+        echo "$iface" > "$ULA_IFACE_FILE"
+        log "ULA: added $addr to $iface"
+        return 0
+    fi
+    log "ULA: failed to add $addr to $iface"
+    return 1
+}
+
+# Removes the address and drops the flag. Used when the feature is switched
+# off and when the engine stops.
+ula_remove() {
+    local old suffix
+    old=$(cat "$ULA_IFACE_FILE" 2>/dev/null)
+    if [ -n "$old" ]; then
+        suffix=$(cat "$ULA_SUFFIX_FILE" 2>/dev/null)
+        [ -n "$suffix" ] && $ip -6 addr del "fc00::$suffix/128" dev "$old" 2>/dev/null
+        log "ULA: removed from $old"
+    fi
+    rm -f "$ULA_FLAG" "$ULA_IFACE_FILE"
+}
+
 # --- Network interface monitor ---------------------------------------------
 #
 # Event-driven via `ip monitor route`. Two changes from the original:
@@ -588,6 +673,7 @@ monitor_net_interfaces() {
         log "initial active interface: $cur"
         apply_mark_rule "$cur" || cur=""
         update_vpn_bypass
+        ula_apply "$cur"
     else
         log "no active interface at startup"
     fi
@@ -611,6 +697,10 @@ monitor_net_interfaces() {
         update_vpn_bypass
 
         if [ "$new" = "$cur" ]; then
+            # Same interface, but netd/IpClient may have flushed its
+            # addresses during a reconnect: re-assert the ULA (no-op if
+            # present or if the feature is off).
+            ula_apply "$cur"
             continue
         fi
 
@@ -626,6 +716,7 @@ monitor_net_interfaces() {
             cur="$new"
             ip_hunt_reset
         fi
+        ula_apply "$new"
         $ip addr show "$new" > "$ADDR_INFO_FILE" 2>/dev/null
         check_ip_hunter "$new"
     done < "$IFACE_EVENT_PIPE"
@@ -1088,6 +1179,20 @@ apply_routing_rules() {
     fi
     echo "Bypass interfaces: ${bypass_iface_list:-<none>}"
 
+    # IPv6 ULA decoy: only meaningful when IPv6 is routed through Xray at
+    # all. Raising ULA_FLAG here (a full restart always passes through this
+    # function when the setting changes) is what arms the interface monitor;
+    # the current interface is handled right away instead of waiting for the
+    # next route event.
+    if [ "$ipv6_enabled" = true ] && setting_is_true enableIPv6ULA; then
+        echo "IPv6 ULA decoy: on"
+        touch "$ULA_FLAG"
+        local ula_iface
+        ula_iface="$(get_active_interface)" && ula_apply "$ula_iface"
+    else
+        ula_remove
+    fi
+
     # Enable IP forward feature
     enable_forward "$ipv6_enabled"
 
@@ -1429,6 +1534,9 @@ clear_routing_rules() {
     $ip6tables -t filter -D FORWARD -j HOTSPOT_FORWARD
     $ip6tables -t filter -F HOTSPOT_FORWARD
     $ip6tables -t filter -X HOTSPOT_FORWARD
+
+    # Drop the IPv6 ULA decoy address along with the rest of the rules.
+    ula_remove
 
     # Down the TUN device
     $ip link set dev $TUN_NAME down

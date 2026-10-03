@@ -81,6 +81,11 @@ let advSettings = {
     // are the literal Xray strategies. Resolved in convert_uri_to_xray_json().
     domainStrategy: "auto",
     enableIPv6: false,
+    // Network tab, sub-option of enableIPv6. true: service.sh adds a
+    // fc00::xxxx:xxxx/128 address to the active interface so apps think IPv6
+    // works even when the physical network is IPv4-only. Read by service.sh
+    // (setting_is_true enableIPv6ULA); ignored while enableIPv6 is off.
+    enableIPv6ULA: false,
     // Xray dns.queryStrategy: UseIP | UseIPv4 | UseIPv6 | UseSystem.
     // Replaces the old boolean `preferIpv6` (true -> UseIPv6, false -> UseIPv4);
     // see resolveDnsQueryStrategy() in helper.js for the migration.

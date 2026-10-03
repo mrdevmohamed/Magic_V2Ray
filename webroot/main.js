@@ -3093,6 +3093,8 @@ function bindSettingsToFormView() {
     document.getElementById('set-sniffing').checked = advSettings.sniffing;
     document.getElementById('set-routeonly').checked = advSettings.routeOnly;
     document.getElementById('set-enableipv6').checked = advSettings.enableIPv6;
+    document.getElementById('set-enableipv6ula').checked = advSettings.enableIPv6ULA === true;
+    toggleSubSettingField('set-enableipv6', 'enableipv6ula-sub-fields');
     // Migrate the legacy boolean `preferIpv6` into `queryStrategy` once.
     advSettings.queryStrategy = resolveDnsQueryStrategy(advSettings);
     delete advSettings.preferIpv6;
@@ -3222,6 +3224,7 @@ async function resetTrafficSettings() {
 function saveNetworkSettingsForm() {
     advSettings.networkMode = parseInt(document.getElementById('set-networkmode').value) || 0;
     advSettings.enableIPv6 = document.getElementById('set-enableipv6').checked;
+    advSettings.enableIPv6ULA = document.getElementById('set-enableipv6ula').checked;
     advSettings.allowTether = document.getElementById('set-allowtether').checked;
     advSettings.includeLan = document.getElementById('set-includelan').checked;
 
