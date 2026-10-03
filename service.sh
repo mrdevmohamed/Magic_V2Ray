@@ -74,7 +74,9 @@ APPS_MON_CHILD="$RUN_DIR/apps_monitor_child.pid"
 # IPv6 ULA decoy (see "IPv6 ULA decoy" in section 6). ULA_FLAG existing means
 # the feature is active for this engine run (written by apply_routing_rules,
 # removed by clear_routing_rules), so the interface monitor can test it with
-# no forks. ULA_IFACE_FILE remembers which interface currently carries the
+# no forks. Its content is the prefix length to put on the address: 64 when
+# hotspot clients may use the proxy (allowTether), 128 otherwise.
+# ULA_IFACE_FILE remembers which interface currently carries the
 # address; ULA_SUFFIX_FILE keeps the random xxxx:xxxx stable until reboot.
 ULA_FLAG="$RUN_DIR/ula_enabled"
 ULA_IFACE_FILE="$RUN_DIR/ula_iface"
@@ -579,13 +581,23 @@ check_ip_hunter() {
 # xraytun0 is not the default network, so Android judges IPv6 by the physical
 # interface alone. When that interface only has IPv4, apps see "no IPv6" and
 # never open IPv6 sockets, even though Xray could carry them. With the
-# "enableIPv6ULA" setting on (and enableIPv6), a fc00:7872:6179::xxxx:xxxx/128 address is
-# added to the active interface so apps consider IPv6 usable. Only the address
-# is added, never a route in the main table: marked packets are re-routed into
-# $TUN_NAME by XRAY_MARK, and Xray's own egress (fwmark $FWMARK) must keep
-# falling back to IPv4 instead of trying a v6 path that goes nowhere.
+# "enableIPv6ULA" setting on (and enableIPv6), a fc00:7872:6179::xxxx:xxxx address
+# is added to the active interface so apps consider IPv6 usable. No route goes
+# into the main table: marked packets are re-routed into $TUN_NAME by
+# XRAY_MARK, and Xray's own egress (fwmark $FWMARK) must keep falling back to
+# IPv4 instead of trying a v6 path that goes nowhere.
 #
-# /128 + noprefixroute: no connected prefix route is created in the main table.
+# Prefix length: /64 when allowTether is on, /128 when it is off. Android's
+# tethering only advertises (router advertisement) a /64 taken from the
+# upstream interface, so /64 is what lets hotspot clients pick up
+# fc00:7872:6179::/64 as well; their traffic is then marked in
+# HOTSPOT_PREROUTING and sent to the tun like the phone's own. With tethering
+# off nothing should be advertised, so the address stays a /128.
+#
+# noprefixroute: no connected prefix route is created in the main table. That
+# matters for /64: the prefix is on-link on the hotspot interface, not on the
+# upstream one, so an on-link route here would send replies to clients the
+# wrong way.
 # nodad: the address is usable immediately instead of sitting in "tentative".
 #
 # Address alone is not enough: with no IPv6 route, `ip -6 route get <global>`
@@ -648,7 +660,7 @@ ula_suffix() {
 # Idempotent: makes sure the active interface carries the ULA address and
 # that no other interface still does. Cheap no-op when the feature is off.
 ula_apply() {
-    local iface="$1" suffix addr old
+    local iface="$1" suffix addr old len
     [ -f "$ULA_FLAG" ] || return 0
     [ -n "$iface" ] || return 0
     [ "$iface" = "$TUN_NAME" ] && return 0
@@ -656,27 +668,47 @@ ula_apply() {
     suffix=$(ula_suffix) || { log "ULA: could not generate address"; return 1; }
     addr="$ULA_PREFIX$suffix"
 
+    # Prefix length lives in the flag file (see apply_routing_rules); `read`
+    # is a builtin, so this stays fork-free. Anything unexpected -> /128.
+    len=""
+    read -r len < "$ULA_FLAG" 2>/dev/null
+    case "$len" in 64|128) ;; *) len=128 ;; esac
+
     old=$(cat "$ULA_IFACE_FILE" 2>/dev/null)
     if [ -n "$old" ] && [ "$old" != "$iface" ]; then
-        $ip -6 addr del "$addr/128" dev "$old" 2>/dev/null
+        ula_addr_del "$addr" "$old"
         log "ULA: removed $addr from $old"
     fi
 
-    if $ip -6 addr show dev "$iface" 2>/dev/null | grep -qF "inet6 $addr/128"; then
+    if $ip -6 addr show dev "$iface" 2>/dev/null | grep -qF "inet6 $addr/$len"; then
         echo "$iface" > "$ULA_IFACE_FILE"
         ula_route_apply "$iface" "$addr"
         return 0
     fi
 
-    if $ip -6 addr replace "$addr/128" dev "$iface" nodad noprefixroute 2>/dev/null \
-        || $ip -6 addr replace "$addr/128" dev "$iface" 2>/dev/null; then
+    # Not there with the wanted length. It may exist with the other one (the
+    # allowTether setting changed), and an address cannot be re-added with a
+    # different prefix length, so drop both first.
+    ula_addr_del "$addr" "$iface"
+
+    if $ip -6 addr replace "$addr/$len" dev "$iface" nodad noprefixroute 2>/dev/null \
+        || $ip -6 addr replace "$addr/$len" dev "$iface" 2>/dev/null; then
+        # Fallback form (no noprefixroute support) makes the kernel add the
+        # on-link prefix route to the main table; remove it, see header above.
+        [ "$len" = 64 ] && $ip -6 route del "$ULA_PREFIX/64" dev "$iface" 2>/dev/null
         echo "$iface" > "$ULA_IFACE_FILE"
-        log "ULA: added $addr to $iface"
+        log "ULA: added $addr/$len to $iface"
         ula_route_apply "$iface" "$addr"
         return 0
     fi
-    log "ULA: failed to add $addr to $iface"
+    log "ULA: failed to add $addr/$len to $iface"
     return 1
+}
+
+# Deletes the ULA address from an interface whichever prefix length it has.
+ula_addr_del() {
+    $ip -6 addr del "$1/64" dev "$2" 2>/dev/null
+    $ip -6 addr del "$1/128" dev "$2" 2>/dev/null
 }
 
 # Removes the address and drops the flag. Used when the feature is switched
@@ -686,7 +718,7 @@ ula_remove() {
     old=$(cat "$ULA_IFACE_FILE" 2>/dev/null)
     if [ -n "$old" ]; then
         suffix=$(cat "$ULA_SUFFIX_FILE" 2>/dev/null)
-        [ -n "$suffix" ] && $ip -6 addr del "$ULA_PREFIX$suffix/128" dev "$old" 2>/dev/null
+        [ -n "$suffix" ] && ula_addr_del "$ULA_PREFIX$suffix" "$old"
         log "ULA: removed from $old"
     fi
     ula_route_remove
@@ -1232,9 +1264,13 @@ apply_routing_rules() {
     # the current interface is handled right away instead of waiting for the
     # next route event.
     if [ "$ipv6_enabled" = true ] && setting_is_true enableIPv6ULA; then
-        echo "IPv6 ULA decoy: on"
-        touch "$ULA_FLAG"
-        local ula_iface
+        # The flag's content is the prefix length for ula_apply: /64 lets
+        # Android advertise the prefix to hotspot clients, so only use it when
+        # tethered clients are allowed through the proxy; otherwise /128.
+        local ula_iface ula_len
+        if [ "$allow_tether" = true ]; then ula_len=64; else ula_len=128; fi
+        echo "IPv6 ULA decoy: on (/$ula_len)"
+        echo "$ula_len" > "$ULA_FLAG"
         ula_iface="$(get_active_interface)" && ula_apply "$ula_iface"
     else
         ula_remove
