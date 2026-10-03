@@ -62,10 +62,13 @@ const DEFAULT_SUB_USERAGENT = "v2rayNG/2.2.3";
 const STUB_DIR = "/dev/sysctl_stubs";
 const TIME_RES_FILE = `${STUB_DIR}/run/time_res`;
 const ADDR_INFO_FILE = `${STUB_DIR}/run/addr_info`;
+const LOG_DIR = `${STUB_DIR}/logs`;
 // Refreshed by the UI while the Latency tab is visible. The backend probe
 // loop exits on its own once this stops being updated, so closing the WebUI
 // can no longer leave a per-second curl running until reboot.
 const LATENCY_HB_FILE = `${STUB_DIR}/run/latency.hb`;
+// Logging pipe control
+const LOG_CTRL = `${LOG_DIR}/control.pipe`;
  
 let profiles = {};
 // Raw text of CONFIG_JSON, kept in memory while professional mode is on so
@@ -73,7 +76,7 @@ let profiles = {};
 let customConfigText = "";
 let activeConfig = null;
 let advSettings = {
-    loglevel: "none",
+    loglevel: "info",
     sniffing: true,
     routeOnly: false,
     // Xray routing.domainStrategy. "auto" keeps the pre-existing behavior

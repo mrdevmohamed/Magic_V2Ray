@@ -4089,7 +4089,7 @@ function refreshLog() {
     const dot = document.getElementById('log-status-dot');
 
     execShell(
-        `tail -n ${tailLines} '${DATADIR}/xray.log' 2>/dev/null || echo ''`,
+        `${MODDIR}/bin/xhuskydg_helper logservice read -c '${LOG_CTRL}'`,
         (output) => {
             btn && btn.classList.remove('spinning');
 

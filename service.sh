@@ -31,6 +31,7 @@ CONFIG_NAME=config.v2.json
 
 RUN_DIR="$STUB_DIR/run"
 PROC_DIR="$STUB_DIR/proc"
+LOG_DIR="$STUB_DIR/logs"
 
 # Prepare working dir. Unmount any leftover from a previous run first —
 # rm -rf on a live mountpoint silently leaves the mount in place.
@@ -42,10 +43,15 @@ if ! mount -t tmpfs -o "mode=0755,context=u:object_r:proc_net:s0" proc "$STUB_DI
     # plain directory still works; we only lose the private mount namespace.
     echo "warning: tmpfs mount failed, falling back to a plain directory"
 fi
-mkdir -p "$RUN_DIR" "$PROC_DIR"
-chmod 700 "$RUN_DIR"
+mkdir -p "$RUN_DIR" "$PROC_DIR" "$LOG_DIR"
+chmod 700 "$RUN_DIR" "$PROC_DIR" "$LOG_DIR"
 
-XRAY_LOG="$DATADIR/xray.log"
+LOG_CTRL="$LOG_DIR/control.pipe"
+XRAY_LOG="$LOG_DIR/input.pipe"
+XRAY_LOG_FILE="$DATADIR/xray.log"
+# Create the logservice input pipe first so the helper can start writing to it
+"$MODDIR/bin/xhuskydg_helper" logservice create -c "$LOG_CTRL" -i "$XRAY_LOG" --daemonize
+
 SERVICE_LOG="$DATADIR/service.log"
 IP_HUNT_FILE="$DATADIR/ip_hunt.list"
 # Comma-separated interface names whose outbound traffic skips Xray
@@ -1643,6 +1649,7 @@ start_xray() {
     # XRAY_TUN_FD, then execvp's into xray (same pid — exec doesn't change
     # it). xray's tun-in inbound reads that fd directly; the interface is
     # non-persistent so it lives and dies with this process.
+    "$MODDIR/bin/xhuskydg_helper" logservice flush -c "$LOG_CTRL"
     "$BINDIR/xhuskydg_helper" openxtun "$TUN_NAME" "$BINDIR/xray" run -c "$DATADIR/$CONFIG_NAME" \
         </dev/null >"$XRAY_LOG" 2>&1 &
     XRAY_PID=$!
@@ -1679,6 +1686,9 @@ stop_xray() {
     umount_proc_with_name "xray"
     rm -f "$ENABLED_FLAG"
     log "xray stopped"
+    # Save output from the last run to the log file for later retrieval by the UI.
+    "$MODDIR/bin/xhuskydg_helper" logservice read -c "$LOG_CTRL" -o "$XRAY_LOG_FILE"
+    "$MODDIR/bin/xhuskydg_helper" logservice flush -c "$LOG_CTRL"
     return 0
 }
 
@@ -1709,6 +1719,8 @@ restart_xray() {
         fi
     fi
     umount_proc_with_name "xray"
+    "$MODDIR/bin/xhuskydg_helper" logservice read -c "$LOG_CTRL" -o "$XRAY_LOG_FILE"
+    "$MODDIR/bin/xhuskydg_helper" logservice flush -c "$LOG_CTRL"
     XRAY_PID=0
 
     # Must go through openxtun here too: a bare xray relaunch has no
