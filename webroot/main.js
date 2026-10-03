@@ -4190,13 +4190,15 @@ function setLogFilter(level) {
 }
 
 function clearLogView() {
-    _logAllLines = [];
-    document.getElementById('log-output')?.querySelectorAll('.log-line')
-        .forEach(el => el.remove());
-    const emptyState = document.getElementById('log-empty-state');
-    emptyState && (emptyState.style.display = '');
-    document.getElementById('log-line-count').textContent = '— lines';
-    showToast(t('toast_log_cleared'), 'info');
+    execShell(`${MODDIR}/bin/xhuskydg_helper logservice flush -c '${LOG_CTRL}'`, () => {
+        _logAllLines = [];
+        document.getElementById('log-output')?.querySelectorAll('.log-line')
+            .forEach(el => el.remove());
+        const emptyState = document.getElementById('log-empty-state');
+        emptyState && (emptyState.style.display = '');
+        document.getElementById('log-line-count').textContent = '— lines';
+        showToast(t('toast_log_cleared'), 'info');
+    });
 }
 
 function copyLogToClipboard() {
