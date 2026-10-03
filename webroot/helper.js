@@ -787,7 +787,8 @@ function convert_uri_to_xray_json(uri, optional_settings) {
                     serverName: c.sni || "",
                     alpn: c.alpn ? c.alpn.split(',') : undefined,
                     // "allowInsecure" was removed by Xray-core; never emit it into config.json.
-                    ...(c.ech ? { echConfigList: c.ech } : {})
+                    ...(c.ech ? { echConfigList: c.ech } : {}),
+                    ...(c.vcn ? { verifyPeerCertByName: c.vcn } : {})
                 };
                 const nodePcs = c.pcs || settings.pinnedPeerCertSha256;
                 if (nodePcs) {
@@ -893,7 +894,8 @@ function convert_uri_to_xray_json(uri, optional_settings) {
                         alpn: p.get('alpn') ? p.get('alpn').split(',') : undefined,
                         fingerprint: p.get('fp') || undefined,
                         // "allowInsecure" was removed by Xray-core; never emit it into config.json.
-                        ...(p.get('ech') ? { echConfigList: p.get('ech') } : {})
+                        ...(p.get('ech') ? { echConfigList: p.get('ech') } : {}),
+                        ...(p.get('vcn') ? { verifyPeerCertByName: p.get('vcn') } : {})
                     };
                     const nodePcs = p.get('pcs') || settings.pinnedPeerCertSha256;
                     if (nodePcs) {
@@ -1064,7 +1066,8 @@ function convert_uri_to_xray_json(uri, optional_settings) {
                                 alpn: ssParams.get('alpn') ? ssParams.get('alpn').split(',') : undefined,
                                 fingerprint: ssParams.get('fp') || undefined,
                                 // "allowInsecure" was removed by Xray-core; never emit it into config.json.
-                                ...(ssParams.get('ech') ? { echConfigList: ssParams.get('ech') } : {})
+                                ...(ssParams.get('ech') ? { echConfigList: ssParams.get('ech') } : {}),
+                                ...(ssParams.get('vcn') ? { verifyPeerCertByName: ssParams.get('vcn') } : {})
                             };
                             const nodePcs = ssParams.get('pcs') || settings.pinnedPeerCertSha256;
                             if (nodePcs) {
@@ -1696,6 +1699,7 @@ function convert_outbound_to_uri(outbound) {
                 path: '',
                 tls:  sec === 'tls' ? 'tls' : '',
                 sni:  tls.serverName || '',
+                vcn:  tls.verifyPeerCertByName || '',
                 alpn: tls.alpn ? tls.alpn.join(',') : ''
             };
 
@@ -1760,6 +1764,7 @@ function convert_outbound_to_uri(outbound) {
                 const tls = ss.tlsSettings || {};
                 if (tls.serverName)  q.sni = tls.serverName;
                 if (tls.fingerprint) q.fp  = tls.fingerprint;
+                if (tls.verifyPeerCertByName) q.vcn = tls.verifyPeerCertByName;
                 if (tls.alpn?.length) q.alpn = tls.alpn.join(',');
             } else if (sec === 'reality') {
                 const r = ss.realitySettings || {};
@@ -1858,6 +1863,7 @@ function convert_outbound_to_uri(outbound) {
                 const tls = ss.tlsSettings || {};
                 if (tls.serverName)  q.sni = tls.serverName;
                 if (tls.fingerprint) q.fp  = tls.fingerprint;
+                if (tls.verifyPeerCertByName) q.vcn = tls.verifyPeerCertByName;
                 if (tls.alpn?.length) q.alpn = tls.alpn.join(',');
             } else if (sec === 'reality') {
                 const r = ss.realitySettings || {};

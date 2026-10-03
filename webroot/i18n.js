@@ -197,6 +197,7 @@ const i18n = {
         warn_allowinsecure_removed: "Removed by Xray-core and no longer usable. It will never be written into the config, even if an imported link has allowInsecure=true.",
         lbl_pcs: "Pinned cert SHA256",
         lbl_ech: "ECH config list",
+        lbl_vcn: "Verify peer cert by name",
 
         // TCP HTTP header
         lbl_tcp_http_host: "HTTP host",
@@ -641,6 +642,7 @@ const i18n = {
         warn_allowinsecure_removed: "该选项已被 Xray-core 移除，无法再使用。即使导入的链接中包含 allowInsecure=true，也绝不会写入配置文件。",
         lbl_pcs: "固定证书 SHA256",
         lbl_ech: "ECH 配置列表",
+        lbl_vcn: "按名称验证证书（verifyPeerCertByName）",
 
         // TCP HTTP header
         lbl_tcp_http_host: "HTTP Host",
@@ -1085,6 +1087,7 @@ const i18n = {
         warn_allowinsecure_removed: "此選項已被 Xray-core 移除，無法再使用。即使匯入的連結含有 allowInsecure=true，也絕不會寫入設定檔。",
         lbl_pcs: "固定憑證 SHA256",
         lbl_ech: "ECH 設定清單",
+        lbl_vcn: "依名稱驗證憑證（verifyPeerCertByName）",
 
         // TCP HTTP header
         lbl_tcp_http_host: "HTTP Host",
@@ -1529,6 +1532,7 @@ const i18n = {
         warn_allowinsecure_removed: "Tùy chọn này đã bị Xray-core loại bỏ và không thể dùng được nữa. Nó sẽ không bao giờ được ghi vào file cấu hình, kể cả khi link nhập vào có allowInsecure=true.",
         lbl_pcs: "Chứng chỉ ghim SHA256",
         lbl_ech: "Danh sách cấu hình ECH",
+        lbl_vcn: "Xác minh chứng chỉ theo tên (verifyPeerCertByName)",
 
         // TCP HTTP header
         lbl_tcp_http_host: "HTTP host",

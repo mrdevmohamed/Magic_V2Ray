@@ -1519,6 +1519,7 @@ function getFullNodeDetails(node) {
         allowInsecure: false,
         pcs: "",
         ech: "",
+        vcn: "",
         alterId: "0",
         headerType: "none",
         // WireGuard
@@ -1557,6 +1558,7 @@ function getFullNodeDetails(node) {
             d.allowInsecure = c.allowInsecure === true || c.allowInsecure === "1" || c.allowInsecure === 1;
             d.pcs = c.pcs || "";
             d.ech = c.ech || "";
+            d.vcn = c.vcn || "";
             d.alterId = c.aid !== undefined ? String(c.aid) : "0";
             d.headerType = c.type || "none";
             // Per-network fields
@@ -1626,6 +1628,7 @@ function getFullNodeDetails(node) {
             d.allowInsecure = p.get('insecure') === '1' || p.get('allowInsecure') === '1' || p.get('allowInsecure') === 'true';
             d.pcs = p.get('pcs') || '';
             d.ech = p.get('ech') || '';
+            d.vcn = p.get('vcn') || '';
             d.finalMask = _normalizeFinalMask(p.get('finalmask'));
             d.vlessEncryption = p.get('encryption') || 'none';
 
@@ -1717,6 +1720,7 @@ function getFullNodeDetails(node) {
                     d.allowInsecure = p.get('insecure') === '1' || p.get('allowInsecure') === '1' || p.get('allowInsecure') === 'true';
                     d.pcs = p.get('pcs') || '';
                     d.ech = p.get('ech') || '';
+            d.vcn = p.get('vcn') || '';
                     d.finalMask = _normalizeFinalMask(p.get('finalmask'));
 
                     if (d.network === 'tcp') {
@@ -1857,6 +1861,7 @@ function serializeNodeDetailsToUri(d, protocol) {
             // "allowInsecure" was removed by Xray-core; never emit it into the exported URI.
             if (d.pcs) params.set('pcs', d.pcs);
             if (d.ech) params.set('ech', d.ech);
+            if (d.vcn) params.set('vcn', d.vcn);
         }
         if (d.network === 'tcp' && d.tcpHeaderType && d.tcpHeaderType !== 'none') {
             params.set('headerType', d.tcpHeaderType);
@@ -1974,6 +1979,7 @@ function serializeNodeDetailsToUri(d, protocol) {
             // "allowInsecure" was removed by Xray-core; never emit it into the exported vmess link.
             if (d.pcs) c.pcs = d.pcs;
             if (d.ech) c.ech = d.ech;
+            if (d.vcn) c.vcn = d.vcn;
         }
         if (d.network === 'tcp') {
             c.type = d.tcpHeaderType || "none";
@@ -2014,6 +2020,7 @@ function serializeNodeDetailsToUri(d, protocol) {
             // "allowInsecure" was removed by Xray-core; never emit it into the exported URI.
             if (d.pcs) params.set('pcs', d.pcs);
             if (d.ech) params.set('ech', d.ech);
+            if (d.vcn) params.set('vcn', d.vcn);
         }
         // Per-network params
         if (d.network === 'tcp' && d.tcpHeaderType && d.tcpHeaderType !== 'none') {
@@ -2267,6 +2274,7 @@ function _populateEditModal(node, isNew = false) {
     document.getElementById('edit-allowinsecure').checked = !!d.allowInsecure;
     document.getElementById('edit-pcs').value = d.pcs || '';
     document.getElementById('edit-ech').value = d.ech || '';
+    document.getElementById('edit-vcn').value = d.vcn || '';
     document.getElementById('edit-pbk').value = d.publicKey;
     document.getElementById('edit-sid').value = d.shortId;
     document.getElementById('edit-spx').value = d.spiderX || '';
@@ -2437,6 +2445,7 @@ function _collectEditFormData() {
         allowInsecure: false,
         pcs: document.getElementById('edit-pcs').value.trim(),
         ech: document.getElementById('edit-ech').value.trim(),
+        vcn: document.getElementById('edit-vcn').value.trim(),
         publicKey: document.getElementById('edit-pbk').value.trim(),
         shortId: document.getElementById('edit-sid').value.trim(),
         spiderX: document.getElementById('edit-spx').value.trim(),
