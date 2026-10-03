@@ -36,6 +36,7 @@
                         <button type="button" role="menuitem" class="tab-menu-item active" aria-current="page" data-tab="tab-dashboard" onclick="switchTab('tab-dashboard', event)" data-i18n="tab_dashboard">Dashboard</button>
                         <button type="button" role="menuitem" class="tab-menu-item" data-tab="tab-settings" onclick="switchTab('tab-settings', event)" data-i18n="tab_settings">Traffic Settings</button>
                         <button type="button" role="menuitem" class="tab-menu-item" data-tab="tab-network" onclick="switchTab('tab-network', event)" data-i18n="tab_network">Network Settings</button>
+                        <button type="button" role="menuitem" class="tab-menu-item" data-tab="tab-exclude" onclick="switchTab('tab-exclude', event)" data-i18n="tab_exclude">Exclude Apps</button>
                         <button type="button" role="menuitem" class="tab-menu-item" data-tab="tab-routing" onclick="switchTab('tab-routing', event)" data-i18n="tab_routing">Routing Settings</button>
                         <button type="button" role="menuitem" class="tab-menu-item" data-tab="tab-hosts" onclick="switchTab('tab-hosts', event)" data-i18n="tab_hosts">Custom Hosts</button>
                         <button type="button" role="menuitem" class="tab-menu-item" data-tab="tab-log" onclick="switchTab('tab-log', event)" data-i18n="tab_log">Xray Log</button>
@@ -333,6 +334,55 @@
             </section>
         </div>
 
+        <!-- ===== Exclude Apps Tab ===== -->
+        <!-- Logic lives in excludeapps.js. Enforcement is OS-level (service.sh),
+             so applying always does a full engine restart. -->
+        <div id="tab-exclude" class="tab-content">
+            <section class="settings-form-panel">
+                <h3 data-i18n="exclude_title">Exclude Apps</h3>
+                <p class="restart-notice" data-i18n="exclude_notice">Apps you switch on here bypass the proxy and use the direct connection. Applying a change fully restarts the engine, because it changes how traffic is routed at the OS level.</p>
+
+                <div class="settings-group-box">
+                    <div class="setting-item-row toggle-row">
+                        <label for="set-exclude-enabled"><span data-i18n="lbl_exclude_enabled">Enable Exclude apps</span><small data-i18n="desc_exclude_enabled">Apps in the list below skip the proxy. Turn off to keep your list but proxy every app.</small></label>
+                        <input type="checkbox" id="set-exclude-enabled" onchange="onExcludeEnabledChange(this)">
+                    </div>
+                    <div class="setting-item-row toggle-row">
+                        <label for="set-exclude-autoapply"><span data-i18n="lbl_exclude_autoapply">Apply changes immediately</span><small data-i18n="desc_exclude_autoapply">Restart the engine automatically a moment after each change. Turn off to review your changes and apply them yourself.</small></label>
+                        <input type="checkbox" id="set-exclude-autoapply" onchange="onExcludeAutoApplyChange(this)">
+                    </div>
+                    <div id="exclude-apply-bar" class="exclude-apply-bar">
+                        <span id="exclude-pending-text" class="exclude-pending-text" data-i18n="exclude_pending">Unsaved changes</span>
+                        <button id="btn-exclude-apply" class="btn btn-primary" onclick="applyExcludeChanges()" data-i18n="btn_exclude_apply" disabled>Save &amp; Restart Engine</button>
+                    </div>
+                </div>
+
+                <div id="exclude-list-wrap" class="settings-group-box exclude-list-box">
+                    <div class="hosts-search-bar">
+                        <input type="text" id="exclude-search-input" oninput="onExcludeSearchInput()"
+                               data-i18n-placeholder="ph_exclude_search" placeholder="Search app name or package...">
+                    </div>
+                    <div id="exclude-filter-bar" class="log-filter-bar">
+                        <button class="log-filter-chip active" data-filter="user" onclick="setExcludeFilter('user')" data-i18n="exclude_filter_user">User</button>
+                        <button class="log-filter-chip" data-filter="system" onclick="setExcludeFilter('system')" data-i18n="exclude_filter_system">System</button>
+                        <button class="log-filter-chip" data-filter="all" onclick="setExcludeFilter('all')" data-i18n="exclude_filter_all">All</button>
+                        <button class="log-filter-chip" data-filter="excluded" onclick="setExcludeFilter('excluded')" data-i18n="exclude_filter_excluded">Excluded</button>
+                    </div>
+                    <div class="exclude-toolbar">
+                        <span id="exclude-count" class="exclude-count"></span>
+                        <span class="exclude-toolbar-actions">
+                            <button class="log-filter-chip" onclick="excludeSelectVisible(true)" data-i18n="exclude_select_visible">Select shown</button>
+                            <button class="log-filter-chip" onclick="excludeSelectVisible(false)" data-i18n="exclude_clear_visible">Clear shown</button>
+                        </span>
+                    </div>
+                    <div id="exclude-list-container" class="exclude-list-container" onscroll="onExcludeListScroll()"></div>
+                    <div id="exclude-empty-state" class="hosts-empty-state" style="display:none;">
+                        <span data-i18n="exclude_empty">No apps to show.</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+
         <!-- ===== Routing Settings Tab ===== -->
         <div id="tab-routing" class="tab-content">
             <section class="routing-panel">
@@ -577,6 +627,7 @@
     <script src="i18n.js"></script>
     <script src="vars.js"></script>
     <script src="main.js"></script>
+    <script src="excludeapps.js"></script>
     <div id="toast-container" class="toast-container"></div>
 
     <!-- Confirm Modal (KSU webui does not support window.confirm()) -->

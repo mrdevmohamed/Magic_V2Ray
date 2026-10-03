@@ -51,6 +51,10 @@ const HOSTS_HEADER_TEXT = `# Copyright (c) 1993-2009 Microsoft Corp.
 // same pattern as IP_HUNT_FILE: existence of the file means the feature is
 // enabled, and its content (re-read live by service.sh) is the list.
 const BYPASS_IFACE_FILE = `${DATADIR}/bypassIface.txt`;
+// Exclude Apps tab: one Android package name per line. Apps listed here skip
+// Xray when advSettings.excludeApps is true (enforced by service.sh). The list
+// is kept even while the feature is switched off, so it survives a toggle.
+const EXCLUDE_LIST_FILE = `${DATADIR}/excludelist.txt`;
 // Default User-Agent sent when fetching subscription links, so hosts that
 // gate content on the client (e.g. v2rayNG-only subs) still respond.
 // Per-subscription override lives in profiles[category].useragent.
@@ -87,6 +91,12 @@ let advSettings = {
     // Xray. true: they are sent into Xray too, except loopback (127.0.0.0/8
     // and ::1/128). Read by service.sh (setting_is_true includeLan).
     includeLan: false,
+    // Exclude Apps tab. excludeApps: master switch (apps in EXCLUDE_LIST_FILE
+    // bypass Xray; read by service.sh via setting_is_true excludeApps).
+    // excludeAutoApply: UI-only - restart the engine automatically after each
+    // change to the list instead of waiting for the Apply button.
+    excludeApps: false,
+    excludeAutoApply: false,
     mux: false,
     mux_connections: 8,
     fragment: false,
@@ -218,7 +228,7 @@ let advSettings = {
 };
 // Settings owned by the Traffic Settings tab — what its "Reset to defaults"
 // button restores. Network-tab switches (apply-on mode, IPv6, tether, LAN,
-// bypass interfaces), routing rules / domainStrategy, custom hosts,
+// bypass interfaces), Exclude Apps, routing rules / domainStrategy, custom hosts,
 // professional mode and the UI language are deliberately not listed.
 const TRAFFIC_SETTING_KEYS = [
     "loglevel", "sniffing", "routeOnly", "queryStrategy",

@@ -2964,6 +2964,10 @@ function switchTab(tabId, evt) {
         onHostsTabOpened();
     }
 
+    if (tabId === 'tab-exclude') {
+        onExcludeTabOpened();
+    }
+
     if (tabId === 'tab-about') {
         onAboutTabOpened();
     }

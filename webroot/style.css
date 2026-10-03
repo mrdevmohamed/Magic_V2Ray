@@ -2276,3 +2276,72 @@ textarea.pro-config-input {
     background: rgba(208, 188, 255, 0.12);
     border-color: var(--md-primary);
 }
+
+
+/* ===== Exclude Apps tab ===== */
+.exclude-apply-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px 4px;
+}
+.exclude-pending-text {
+    font-size: 13px;
+    color: #FFC457;
+    visibility: hidden;
+}
+.exclude-apply-bar .btn { margin: 0; width: auto; }
+.exclude-apply-bar .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+.exclude-list-box { transition: opacity .2s var(--md-motion-standard); }
+.exclude-list-dimmed { opacity: .6; }
+
+.exclude-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+.exclude-count {
+    font-size: 12px;
+    color: var(--md-on-surface-variant);
+}
+.exclude-toolbar-actions { display: flex; gap: 6px; }
+
+.exclude-list-container {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+.exclude-row { align-items: center; }
+.exclude-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    cursor: pointer;
+}
+.exclude-icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: var(--md-shape-sm);
+    background: var(--md-surface-3);
+    object-fit: contain;
+}
+.exclude-text { min-width: 0; display: block; }
+.exclude-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.exclude-text small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--md-font-mono);
+    font-size: 11px;
+}
