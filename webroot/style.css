@@ -1814,15 +1814,17 @@ select option:active {
 
 /* Log output area */
 .log-output {
-    background: var(--md-surface-1);
+    background: #000;
     border: 1px solid var(--md-outline-variant);
     border-radius: var(--md-shape-md);
     min-height: 360px;
     max-height: 60vh;
     overflow-y: auto;
-    font-family: var(--md-font-mono);
-    font-size: 12px;
-    line-height: 1.6;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', 'Cascadia Mono', 'Cascadia Code', 'Fira Code', 'Source Code Pro', 'Roboto Mono', 'DejaVu Sans Mono', ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    font-variant-ligatures: none;
+    line-height: 1.55;
     padding: 8px 0;
     position: relative;
     scroll-behavior: smooth;
@@ -1849,8 +1851,16 @@ select option:active {
     padding: 1px 12px;
     transition: background .1s;
     cursor: default;
+    white-space: pre;
+    width: max-content;
+    min-width: 100%;
+    box-sizing: border-box;
+}
+.log-output.log-wrap .log-line {
     white-space: pre-wrap;
     word-break: break-all;
+    width: auto;
+    min-width: 0;
 }
 .log-line:hover { background: rgba(255,255,255,0.04); }
 .log-line.log-hidden { display: none; }
@@ -1870,7 +1880,7 @@ select option:active {
 
 /* Log level colors */
 .log-line--debug  .log-line-text { color: #82B4FF; }
-.log-line--info   .log-line-text { color: var(--md-on-surface-variant); }
+.log-line--info   .log-line-text { color: #d4d4d4; }
 .log-line--warning .log-line-text { color: #FFC457; }
 .log-line--error  .log-line-text { color: var(--md-error); }
 .log-line--info.log-line--access .log-line-text { color: var(--md-success); }

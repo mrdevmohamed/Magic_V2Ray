@@ -4162,6 +4162,17 @@ function toggleLogTail() {
     }
 }
 
+function toggleLogWrap() {
+    _logWrapEnabled = !_logWrapEnabled;
+    const output = document.getElementById('log-output');
+    if (output) output.classList.toggle('log-wrap', _logWrapEnabled);
+    const btn = document.getElementById('btn-log-wrap');
+    if (btn) {
+        btn.dataset.active = _logWrapEnabled ? 'true' : 'false';
+        btn.title = _logWrapEnabled ? 'Word wrap ON' : 'Word wrap OFF';
+    }
+}
+
 function setLogFilter(level) {
     _logCurrentFilter = level;
 

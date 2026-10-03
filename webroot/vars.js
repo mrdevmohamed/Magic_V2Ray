@@ -360,6 +360,7 @@ let _routingPersistTimer = null;
 // Logging
 let _logAutoRefreshTimer = null;
 let _logTailEnabled = true;
+let _logWrapEnabled = false;
 let _logCurrentFilter = 'all';
 let _logLastLineCount = 0;
 let _logAllLines = [];
