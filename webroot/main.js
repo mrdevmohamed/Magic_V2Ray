@@ -4100,7 +4100,7 @@ function refreshLog() {
     const dot = document.getElementById('log-status-dot');
 
     execShell(
-        `${MODDIR}/bin/xhuskydg_helper logservice read -c '${LOG_CTRL}'`,
+        `${MODDIR}/bin/xhuskydg_helper logservice read -c '${LOG_CTRL}' -n ${tailLines}`,
         (output) => {
             btn && btn.classList.remove('spinning');
 
