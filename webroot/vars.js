@@ -82,7 +82,7 @@ let advSettings = {
     domainStrategy: "auto",
     enableIPv6: false,
     // Network tab, sub-option of enableIPv6. true: service.sh adds a
-    // fc00::xxxx:xxxx/128 address to the active interface so apps think IPv6
+    // fc00:7872:6179::xxxx:xxxx/128 address to the active interface so apps think IPv6
     // works even when the physical network is IPv4-only. Read by service.sh
     // (setting_is_true enableIPv6ULA); ignored while enableIPv6 is off.
     enableIPv6ULA: false,

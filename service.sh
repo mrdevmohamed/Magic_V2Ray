@@ -79,6 +79,9 @@ APPS_MON_CHILD="$RUN_DIR/apps_monitor_child.pid"
 ULA_FLAG="$RUN_DIR/ula_enabled"
 ULA_IFACE_FILE="$RUN_DIR/ula_iface"
 ULA_SUFFIX_FILE="$RUN_DIR/ula_suffix"
+# fc00:7872:6179::/64 - "xray" in hex (78 72 61 79). The address is this prefix
+# plus a random 32-bit suffix, e.g. fc00:7872:6179::d6ba:7979.
+ULA_PREFIX="fc00:7872:6179::"
 
 # List of UIDs we want them to be routed into Xray-core
 XRAY_UID_LIST="
@@ -576,7 +579,7 @@ check_ip_hunter() {
 # xraytun0 is not the default network, so Android judges IPv6 by the physical
 # interface alone. When that interface only has IPv4, apps see "no IPv6" and
 # never open IPv6 sockets, even though Xray could carry them. With the
-# "enableIPv6ULA" setting on (and enableIPv6), a fc00::xxxx:xxxx/128 address is
+# "enableIPv6ULA" setting on (and enableIPv6), a fc00:7872:6179::xxxx:xxxx/128 address is
 # added to the active interface so apps consider IPv6 usable. Only the address
 # is added, never a route: marked packets are re-routed into $TUN_NAME by
 # XRAY_MARK, and Xray's own egress (fwmark $FWMARK) must keep falling back to
@@ -611,7 +614,7 @@ ula_apply() {
     [ "$iface" = "$TUN_NAME" ] && return 0
 
     suffix=$(ula_suffix) || { log "ULA: could not generate address"; return 1; }
-    addr="fc00::$suffix"
+    addr="$ULA_PREFIX$suffix"
 
     old=$(cat "$ULA_IFACE_FILE" 2>/dev/null)
     if [ -n "$old" ] && [ "$old" != "$iface" ]; then
@@ -641,7 +644,7 @@ ula_remove() {
     old=$(cat "$ULA_IFACE_FILE" 2>/dev/null)
     if [ -n "$old" ]; then
         suffix=$(cat "$ULA_SUFFIX_FILE" 2>/dev/null)
-        [ -n "$suffix" ] && $ip -6 addr del "fc00::$suffix/128" dev "$old" 2>/dev/null
+        [ -n "$suffix" ] && $ip -6 addr del "$ULA_PREFIX$suffix/128" dev "$old" 2>/dev/null
         log "ULA: removed from $old"
     fi
     rm -f "$ULA_FLAG" "$ULA_IFACE_FILE"
