@@ -581,12 +581,52 @@ check_ip_hunter() {
 # never open IPv6 sockets, even though Xray could carry them. With the
 # "enableIPv6ULA" setting on (and enableIPv6), a fc00:7872:6179::xxxx:xxxx/128 address is
 # added to the active interface so apps consider IPv6 usable. Only the address
-# is added, never a route: marked packets are re-routed into $TUN_NAME by
-# XRAY_MARK, and Xray's own egress (fwmark $FWMARK) must keep falling back to
-# IPv4 instead of trying a v6 path that goes nowhere.
+# is added, never a route in the main table: marked packets are re-routed into
+# $TUN_NAME by XRAY_MARK, and Xray's own egress (fwmark $FWMARK) must keep
+# falling back to IPv4 instead of trying a v6 path that goes nowhere.
 #
 # /128 + noprefixroute: no connected prefix route is created in the main table.
 # nodad: the address is usable immediately instead of sitting in "tentative".
+#
+# Address alone is not enough: with no IPv6 route, `ip -6 route get <global>`
+# falls through to Android's "32000: from all unreachable" rule and returns
+# "unreachable", so apps still see IPv6 as unusable. We therefore also install
+# a private policy-routing entry just before that catch-all:
+#
+#   pref 31998  fwmark $FWMARK unreachable   Xray's own egress keeps failing
+#                                            fast and falls back to IPv4
+#   pref 31999  lookup table 31999           default dev <iface> src <ULA>
+#
+# Marked app traffic never gets here (rule 1010 sends it into $TUN_NAME first).
+# Only unmarked traffic (excluded apps, foreign VPN apps, bypassIface) does.
+
+ULA_TABLE=31999
+ULA_RULE_PREF=31999
+ULA_BLOCK_PREF=31998
+
+# Idempotent: table 31999 holds `default dev <iface> src <ULA>` for the current
+# interface, and the two rules above exist exactly once.
+ula_route_apply() {
+    local iface="$1" addr="$2" rules
+    if ! $ip -6 route replace default dev "$iface" src "$addr" metric 1024 \
+        table $ULA_TABLE 2>/dev/null; then
+        log "ULA: route add failed on $iface"
+        return 1
+    fi
+
+    rules="$($ip -6 rule show 2>/dev/null)"
+    echo "$rules" | grep -q "^$ULA_BLOCK_PREF:" \
+        || $ip -6 rule add fwmark $FWMARK unreachable pref $ULA_BLOCK_PREF 2>/dev/null
+    echo "$rules" | grep -q "^$ULA_RULE_PREF:" \
+        || $ip -6 rule add lookup $ULA_TABLE pref $ULA_RULE_PREF 2>/dev/null
+    return 0
+}
+
+ula_route_remove() {
+    while $ip -6 rule del pref $ULA_RULE_PREF 2>/dev/null; do :; done
+    while $ip -6 rule del pref $ULA_BLOCK_PREF 2>/dev/null; do :; done
+    $ip -6 route flush table $ULA_TABLE 2>/dev/null
+}
 
 ula_suffix() {
     local u hi lo
@@ -624,6 +664,7 @@ ula_apply() {
 
     if $ip -6 addr show dev "$iface" 2>/dev/null | grep -qF "inet6 $addr/128"; then
         echo "$iface" > "$ULA_IFACE_FILE"
+        ula_route_apply "$iface" "$addr"
         return 0
     fi
 
@@ -631,6 +672,7 @@ ula_apply() {
         || $ip -6 addr replace "$addr/128" dev "$iface" 2>/dev/null; then
         echo "$iface" > "$ULA_IFACE_FILE"
         log "ULA: added $addr to $iface"
+        ula_route_apply "$iface" "$addr"
         return 0
     fi
     log "ULA: failed to add $addr to $iface"
@@ -647,6 +689,7 @@ ula_remove() {
         [ -n "$suffix" ] && $ip -6 addr del "$ULA_PREFIX$suffix/128" dev "$old" 2>/dev/null
         log "ULA: removed from $old"
     fi
+    ula_route_remove
     rm -f "$ULA_FLAG" "$ULA_IFACE_FILE"
 }
 
