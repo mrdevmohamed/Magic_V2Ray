@@ -999,6 +999,7 @@ monitor_network_latency() {
 
     : > "$TIME_RES_FILE"
     date +%s > "$LATENCY_HB_FILE"
+    $ip addr show "$(get_active_interface)" > "$ADDR_INFO_FILE" 2>/dev/null
 
     while [ -f "$TIME_RES_FILE" ]; do
         last_hb=$(cat "$LATENCY_HB_FILE" 2>/dev/null || echo 0)
