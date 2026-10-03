@@ -4162,6 +4162,14 @@ function toggleLogTail() {
     }
 }
 
+function changeLogFontSize(delta) {
+    _logFontSize = Math.min(24, Math.max(8, _logFontSize + delta));
+    const output = document.getElementById('log-output');
+    if (output) output.style.setProperty('--log-font-size', _logFontSize + 'px');
+    const label = document.getElementById('log-fontsize-value');
+    if (label) label.textContent = _logFontSize;
+}
+
 function toggleLogWrap() {
     _logWrapEnabled = !_logWrapEnabled;
     const output = document.getElementById('log-output');

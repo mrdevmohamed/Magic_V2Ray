@@ -361,6 +361,7 @@ let _routingPersistTimer = null;
 let _logAutoRefreshTimer = null;
 let _logTailEnabled = true;
 let _logWrapEnabled = false;
+let _logFontSize = 12;
 let _logCurrentFilter = 'all';
 let _logLastLineCount = 0;
 let _logAllLines = [];

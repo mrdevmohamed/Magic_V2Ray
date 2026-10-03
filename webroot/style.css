@@ -1777,6 +1777,26 @@ select option:active {
     to   { transform: rotate(360deg); }
 }
 
+.log-fontsize {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-right: 4px;
+}
+.log-fontsize-value {
+    min-width: 22px;
+    text-align: center;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: var(--md-on-surface);
+}
+.log-fontsize .log-tool-btn {
+    width: 30px;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+}
+
 /* Filter chips */
 .log-filter-bar {
     display: flex;
@@ -1822,7 +1842,7 @@ select option:active {
     overflow-y: auto;
     overflow-x: auto;
     font-family: 'JetBrains Mono', 'Cascadia Mono', 'Cascadia Code', 'Fira Code', 'Source Code Pro', 'Roboto Mono', 'DejaVu Sans Mono', ui-monospace, Menlo, Consolas, monospace;
-    font-size: 12.5px;
+    font-size: var(--log-font-size, 12px);
     font-variant-ligatures: none;
     line-height: 1.55;
     padding: 8px 0;
