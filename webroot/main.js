@@ -1814,6 +1814,7 @@ function getFullNodeDetails(node) {
             d.hy2BandwidthUp = p.get('up') || "";
             d.hy2PortHopping = p.get('mport') || "";
             d.hy2HopInterval = p.get('hopInterval') || "";
+            d.ech = p.get('ech') || "";
             d.finalMask = _normalizeFinalMask(p.get('finalmask'));
         } catch(e) {}
     }
@@ -1931,6 +1932,7 @@ function serializeNodeDetailsToUri(d, protocol) {
         if (d.hy2BandwidthUp) params.set('up', d.hy2BandwidthUp);
         if (d.hy2PortHopping) params.set('mport', d.hy2PortHopping);
         if (d.hy2HopInterval) params.set('hopInterval', d.hy2HopInterval);
+        if (d.ech) params.set('ech', d.ech);
         if (d.finalMask) params.set('finalmask', d.finalMask);
         const user = d.uuid ? encodeURIComponent(d.uuid) : "";
         let urlStr = `hysteria2://${user}@${bracketIPv6(d.address)}:${d.port}`;

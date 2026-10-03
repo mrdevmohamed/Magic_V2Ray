@@ -1252,6 +1252,7 @@ function convert_uri_to_xray_json(uri, optional_settings) {
             };
             const hyAlpn = p.get('alpn');
             if (hyAlpn) hyTlsSettings.alpn = hyAlpn.split(',').map(s => s.trim()).filter(Boolean);
+            if (p.get('ech')) hyTlsSettings.echConfigList = p.get('ech');
 
             outbound = {
                 tag: "proxy",
@@ -1700,6 +1701,7 @@ function convert_outbound_to_uri(outbound) {
                 tls:  sec === 'tls' ? 'tls' : '',
                 sni:  tls.serverName || '',
                 vcn:  tls.verifyPeerCertByName || '',
+                ech:  tls.echConfigList || '',
                 alpn: tls.alpn ? tls.alpn.join(',') : ''
             };
 
@@ -1765,6 +1767,7 @@ function convert_outbound_to_uri(outbound) {
                 if (tls.serverName)  q.sni = tls.serverName;
                 if (tls.fingerprint) q.fp  = tls.fingerprint;
                 if (tls.verifyPeerCertByName) q.vcn = tls.verifyPeerCertByName;
+                if (tls.echConfigList) q.ech = tls.echConfigList;
                 if (tls.alpn?.length) q.alpn = tls.alpn.join(',');
             } else if (sec === 'reality') {
                 const r = ss.realitySettings || {};
@@ -1864,6 +1867,7 @@ function convert_outbound_to_uri(outbound) {
                 if (tls.serverName)  q.sni = tls.serverName;
                 if (tls.fingerprint) q.fp  = tls.fingerprint;
                 if (tls.verifyPeerCertByName) q.vcn = tls.verifyPeerCertByName;
+                if (tls.echConfigList) q.ech = tls.echConfigList;
                 if (tls.alpn?.length) q.alpn = tls.alpn.join(',');
             } else if (sec === 'reality') {
                 const r = ss.realitySettings || {};
@@ -1983,6 +1987,7 @@ function convert_outbound_to_uri(outbound) {
             if (tls.serverName) q.sni = tls.serverName;
             if (tls.alpn?.length) q.alpn = tls.alpn.join(',');
             if (tls.allowInsecure) q.insecure = '1';
+            if (tls.echConfigList) q.ech = tls.echConfigList;
             if (hy.down) q.down = hy.down;
             if (hy.up)   q.up   = hy.up;
             if (hy.udpIdleTimeout) q.udpIdleTimeout = hy.udpIdleTimeout;
